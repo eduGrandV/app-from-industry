@@ -5,7 +5,7 @@ import { GalleryOneNavigator } from "./GalleryOneNavigator";
 import { GalleryTwoNavigator } from "./GalleryTwoNavigator";
 import { GalleryThreeNavigator } from "./GalleryThreeNavigator";
 import { GalleryHubScreen } from "./GalleryHubScreen";
-import { GalleryForNavigator } from "./GalleryForNavigator";
+import { GalleryForNavigator } from "./GalleryFourNavigator";
 
 const Stack = createNativeStackNavigator();
 

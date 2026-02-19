@@ -64,18 +64,18 @@ export function GalleryThreeDashboard() {
           <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
-        {/* OPÇÃO 4: A TELA MISTERIOSA */}
+        {/* OPÇÃO 4: pragas */}
         <TouchableOpacity 
-          style={[styles.card, { opacity: 0.8 }]} 
-          onPress={() => Alert.alert("Em breve", "Me mande a descrição desta tela!")}
+          style={styles.card} 
+          onPress={() => navigation.navigate('PestControl')} // Nome definido no navigator
           activeOpacity={0.7}
         >
-          <View style={[styles.iconBox, { backgroundColor: '#F1F5F9' }]}>
-            <MaterialCommunityIcons name="plus-box" size={28} color="#64748B" />
+          <View style={[styles.iconBox, { backgroundColor: '#FEE2E2' }]}>
+            <MaterialCommunityIcons name="spider" size={28} color="#B91C1C" />
           </View>
           <View style={styles.textBox}>
-            <Text style={styles.cardTitle}>Outro Registro</Text>
-            <Text style={styles.cardSubtitle}>Toque para configurar</Text>
+            <Text style={styles.cardTitle}>Controle de Pragas</Text>
+            <Text style={styles.cardSubtitle}>Monitoramento de áreas</Text>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
