@@ -4,7 +4,7 @@ import {
   cleaningLogSchema,
 } from "../../types/galleryThree/cleaningLogSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
@@ -21,6 +21,8 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 
+import { DraftService } from "../../services/DraftService";
+
 type ParamList = {
   CleaningLog: { areaName: string };
 };
@@ -32,23 +34,99 @@ const SOLUTIONS_MAP = {
   S4: { name: "Hipoclorito", color: "#047857", icon: "water" },
 };
 
+const InputGroup = ({
+  label,
+  name,
+  control,
+  placeholder,
+  keyboard = "default",
+  width = "full",
+}: any) => (
+  <View style={width === "half" ? styles.halfInput : styles.fullInput}>
+    <Text style={styles.label}>{label}</Text>
+    <Controller
+      control={control}
+      name={name}
+      render={({ field: { onChange, onBlur, value } }) => (
+        <TextInput
+          style={styles.input}
+          onBlur={onBlur}
+          onChangeText={onChange}
+          value={value ? String(value) : ""}
+          keyboardType={keyboard}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+        />
+      )}
+    />
+  </View>
+);
+
+const SolutionButton = ({ type, selectedSolution, setValue }: any) => {
+  const isSelected = selectedSolution?.includes(type);
+  const info = SOLUTIONS_MAP[type as keyof typeof SOLUTIONS_MAP];
+
+  const toggleSelection = () => {
+    const currentSelection = selectedSolution || [];
+    if (currentSelection.includes(type)) {
+      setValue(
+        "tipo_solucao",
+        currentSelection.filter((item: string) => item !== type),
+      );
+    } else {
+      setValue("tipo_solucao", [...currentSelection, type]);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[
+        styles.solutionBtn,
+        isSelected && { backgroundColor: info.color, borderColor: info.color },
+      ]}
+      onPress={toggleSelection}
+      activeOpacity={0.7}
+    >
+      <View style={styles.solutionContent}>
+        <Text style={[styles.solutionCode, isSelected && styles.textWhite]}>
+          {type}
+        </Text>
+        <Text style={[styles.solutionName, isSelected && styles.textWhite]}>
+          {info.name}
+        </Text>
+      </View>
+      {isSelected && (
+        <MaterialIcons
+          name="check-circle"
+          size={16}
+          color="#fff"
+          style={styles.checkIcon}
+        />
+      )}
+    </TouchableOpacity>
+  );
+};
+
 export function CleaningLogScreen() {
   const route = useRoute<RouteProp<ParamList, "CleaningLog">>();
   const navigation = useNavigation();
   const { areaName } = route.params || { areaName: "Área Desconhecida" };
+
+  const DRAFT_KEY = `@draft_cleaning_${areaName.replace(/\s+/g, "_")}`;
 
   const {
     control,
     handleSubmit,
     setValue,
     watch,
+    reset,
     formState: { errors },
   } = useForm<CleaningLogFormData>({
     resolver: zodResolver(cleaningLogSchema) as any,
     defaultValues: {
       area: areaName,
       data: new Date(),
-      tipo_solucao: undefined,
+      tipo_solucao: [],
       operador: "",
       responsavel_analista: "",
     },
@@ -57,14 +135,39 @@ export function CleaningLogScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const selectedSolution = watch("tipo_solucao");
 
-  const onSubmit = (data: CleaningLogFormData) => {
+  useEffect(() => {
+    const carregarRascunho = async () => {
+      const rascunhoSalvo = await DraftService.getDraft(DRAFT_KEY);
+      if (rascunhoSalvo) {
+        if (rascunhoSalvo.data) {
+          rascunhoSalvo.data = new Date(rascunhoSalvo.data);
+        }
+        reset(rascunhoSalvo);
+      }
+    };
+    carregarRascunho();
+  }, [reset, DRAFT_KEY]);
+
+  const formAtual = watch();
+  useEffect(() => {
+    DraftService.saveDraft(DRAFT_KEY, formAtual);
+  }, [formAtual, DRAFT_KEY]);
+
+  const onSubmit = async (data: CleaningLogFormData) => {
+    const nomesLidos =
+      data.tipo_solucao
+        ?.map(
+          (sigla) => SOLUTIONS_MAP[sigla as keyof typeof SOLUTIONS_MAP].name,
+        )
+        .join(", ") || "N/A";
+
     const dadosFinais = {
       ...data,
-      nome_solucao_legivel: data.tipo_solucao
-        ? SOLUTIONS_MAP[data.tipo_solucao].name
-        : "N/A",
+      nome_solucao_legivel: nomesLidos,
     };
 
+    console.log(dadosFinais);
+    await DraftService.clearDraft(DRAFT_KEY);
     Alert.alert(
       "Sucesso",
       `Registro de Limpeza (${areaName}) salvo com sucesso!`,
@@ -72,74 +175,12 @@ export function CleaningLogScreen() {
     navigation.goBack();
   };
 
-  const SolutionButton = ({ type }: { type: "S1" | "S2" | "S3" | "S4" }) => {
-    const isSelected = selectedSolution === type;
-    const info = SOLUTIONS_MAP[type];
-
-    return (
-      <TouchableOpacity
-        style={[
-          styles.solutionBtn,
-          isSelected && {
-            backgroundColor: info.color,
-            borderColor: info.color,
-          },
-        ]}
-        onPress={() => setValue("tipo_solucao", type)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.solutionContent}>
-          <Text style={[styles.solutionCode, isSelected && styles.textWhite]}>
-            {type}
-          </Text>
-          <Text style={[styles.solutionName, isSelected && styles.textWhite]}>
-            {info.name}
-          </Text>
-        </View>
-        {isSelected && (
-          <MaterialIcons
-            name="check-circle"
-            size={16}
-            color="#fff"
-            style={styles.checkIcon}
-          />
-        )}
-      </TouchableOpacity>
-    );
-  };
-
-  const InputGroup = ({
-    label,
-    name,
-    placeholder,
-    keyboard = "default",
-    width = "full",
-  }: any) => (
-    <View style={width === "half" ? styles.halfInput : styles.fullInput}>
-      <Text style={styles.label}>{label}</Text>
-      <Controller
-        control={control}
-        name={name}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={styles.input}
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value ? String(value) : ""}
-            keyboardType={keyboard}
-            placeholder={placeholder}
-            placeholderTextColor="#94A3B8"
-          />
-        )}
-      />
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {/* Cabeçalho */}
         <View style={styles.header}>
@@ -159,7 +200,7 @@ export function CleaningLogScreen() {
         {/* --- DADOS INICIAIS --- */}
         <View style={styles.card}>
           <View style={styles.rowMain}>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, marginRight: 12 }}>
               <Text style={styles.label}>DATA</Text>
               <Controller
                 control={control}
@@ -196,16 +237,14 @@ export function CleaningLogScreen() {
                 />
               )}
             </View>
-
-            <View style={{ flex: 1 }}>
-              <InputGroup
-                label="pH Água Inicial"
-                name="ph_agua_inicial"
-                placeholder="0.0"
-                keyboard="numeric"
-                width="full"
-              />
-            </View>
+            <InputGroup
+              control={control}
+              label="pH Água Inicial"
+              name="ph_agua_inicial"
+              placeholder="0.0"
+              keyboard="numeric"
+              width="half"
+            />
           </View>
         </View>
 
@@ -219,18 +258,36 @@ export function CleaningLogScreen() {
           </View>
 
           <View style={styles.sectionBody}>
-            <Text style={styles.subHeader}>Selecione a Solução</Text>
+            <Text style={styles.subHeader}>
+              Selecione as Soluções (Pode marcar várias)
+            </Text>
 
-            {/* Grid de Soluções */}
+            {/* Grid de Soluções Modificado */}
             <View style={styles.solutionGrid}>
-              <SolutionButton type="S1" />
-              <SolutionButton type="S2" />
-              <SolutionButton type="S3" />
-              <SolutionButton type="S4" />
+              <SolutionButton
+                type="S1"
+                selectedSolution={selectedSolution}
+                setValue={setValue}
+              />
+              <SolutionButton
+                type="S2"
+                selectedSolution={selectedSolution}
+                setValue={setValue}
+              />
+              <SolutionButton
+                type="S3"
+                selectedSolution={selectedSolution}
+                setValue={setValue}
+              />
+              <SolutionButton
+                type="S4"
+                selectedSolution={selectedSolution}
+                setValue={setValue}
+              />
             </View>
             {errors.tipo_solucao && (
               <Text style={styles.errorText}>
-                Selecione o tipo de solução utilizada
+                {errors.tipo_solucao.message}
               </Text>
             )}
 
@@ -238,12 +295,15 @@ export function CleaningLogScreen() {
 
             <View style={styles.rowMain}>
               <InputGroup
+                control={control}
                 label="Início (Hora)"
                 name="hora_inicio_limpeza"
                 placeholder="00:00"
                 width="half"
               />
+              <View style={{ width: 12 }} />
               <InputGroup
+                control={control}
                 label="Fim (Hora)"
                 name="hora_fim_limpeza"
                 placeholder="00:00"
@@ -253,13 +313,16 @@ export function CleaningLogScreen() {
 
             <View style={styles.rowMain}>
               <InputGroup
+                control={control}
                 label="Concentração (%)"
                 name="concentracao_pct"
                 placeholder="%"
                 keyboard="numeric"
                 width="half"
               />
+              <View style={{ width: 12 }} />
               <InputGroup
+                control={control}
                 label="Temperatura (°C)"
                 name="temperatura_c"
                 placeholder="°C"
@@ -286,24 +349,29 @@ export function CleaningLogScreen() {
           <View style={styles.sectionBody}>
             <View style={styles.rowMain}>
               <InputGroup
+                control={control}
                 label="Início (Hora)"
                 name="hora_inicio_enxague"
                 placeholder="00:00"
                 width="half"
               />
+              <View style={{ width: 12 }} />
               <InputGroup
+                control={control}
                 label="Fim (Hora)"
                 name="hora_fim_enxague"
                 placeholder="00:00"
                 width="half"
               />
             </View>
-
+            <View style={{ marginTop: 12 }} />
             <InputGroup
+              control={control}
               label="pH Água de Enxágue"
               name="ph_agua_enxague"
               placeholder="0.0"
               keyboard="numeric"
+              width="full"
             />
           </View>
         </View>
@@ -311,30 +379,38 @@ export function CleaningLogScreen() {
         {/* --- RODAPÉ --- */}
         <View style={styles.card}>
           <InputGroup
+            control={control}
             label="Observações / Ocorrências"
             name="observacao"
             placeholder="Digite aqui..."
+            width="full"
           />
           <View style={{ height: 16 }} />
           <InputGroup
+            control={control}
             label="Nome do Operador"
             name="operador"
             placeholder="Quem realizou a limpeza?"
+            width="full"
           />
           <View style={{ height: 16 }} />
           <InputGroup
+            control={control}
             label="Responsável / Analista"
             name="responsavel_analista"
             placeholder="Assinatura do responsável"
+            width="full"
           />
 
           {areaName === "Linha de Vinho" && (
             <>
               <View style={{ height: 16 }} />
               <InputGroup
+                control={control}
                 label="Visto da Gerência"
                 name="responsavel_gerencia"
                 placeholder="Assinatura do Gerente"
+                width="full"
               />
             </>
           )}
@@ -356,7 +432,6 @@ export function CleaningLogScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F1F5F9" },
   content: { padding: 20, paddingBottom: 60 },
-
   header: {
     marginBottom: 24,
     flexDirection: "row",
@@ -429,8 +504,8 @@ const styles = StyleSheet.create({
   },
   sectionBody: { padding: 20 },
 
-  rowMain: { flexDirection: "row", gap: 12 },
-  fullInput: { marginBottom: 0, flex: 1 },
+  rowMain: { flexDirection: "row", alignItems: "center" },
+  fullInput: { flex: 1 },
   halfInput: { flex: 1 },
 
   label: {
@@ -452,19 +527,18 @@ const styles = StyleSheet.create({
     color: "#0F172A",
     fontWeight: "500",
   },
-
   dateButton: {
     flexDirection: "row",
     alignItems: "center",
     borderWidth: 1.5,
     borderColor: "#E2E8F0",
     borderRadius: 12,
-    padding: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     backgroundColor: "#F8FAFC",
     gap: 10,
   },
   dateText: { fontSize: 15, color: "#334155", fontWeight: "500" },
-
   subHeader: {
     fontSize: 12,
     fontWeight: "700",
@@ -473,7 +547,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
   },
 
-  solutionGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  solutionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
   solutionBtn: {
     width: "48%",
     padding: 12,
@@ -493,7 +572,6 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   solutionName: { fontSize: 11, fontWeight: "600", color: "#64748B" },
-
   textWhite: { color: "#FFFFFF" },
   checkIcon: { position: "absolute", top: 8, right: 8 },
 

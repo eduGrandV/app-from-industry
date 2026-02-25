@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -15,20 +15,42 @@ import { MaterialIcons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
 import { wineMonitoringSchema, WineMonitoringFormData } from '../../types/galleryFour/wineMonitoringSchema';
+import { DraftService } from '../../services/DraftService';
+
+const DRAFT_KEY = '@draft_wine_monitoring';
+
+
+const InputGroup = ({ label, name, control, placeholder, keyboard = 'default', flex = 1 }: any) => (
+  <View style={{ flex }}>
+    <Text style={styles.label}>{label}</Text>
+    <Controller
+      control={control}
+      name={name}
+      render={({ field: { onChange, onBlur, value } }) => (
+        <TextInput
+          style={styles.input}
+          onBlur={onBlur}
+          onChangeText={onChange}
+          value={value ? String(value) : ''}
+          keyboardType={keyboard}
+          placeholder={placeholder}
+          placeholderTextColor="#94A3B8"
+        />
+      )}
+    />
+  </View>
+);
 
 export function WineMonitoringScreen() {
   const navigation = useNavigation<any>();
 
-  const { control, handleSubmit } = useForm<WineMonitoringFormData>({
+  const { control, handleSubmit, reset, watch } = useForm<WineMonitoringFormData>({
     resolver: zodResolver(wineMonitoringSchema) as any,
     defaultValues: {
       recepcoes: [{ data_recepcao: '', produtor: '', area: '', variedade: '', qtd_caixas: 0, peso_uva_kg: 0, volume_l: 0, rendimento_pct: 0 }],
       vinificacoes: [{ data_hora: '', temp_c: 0, densidade: 0, aroma: '', remontagem: '', trasfega: '', turbidez: '', acucar_correcao: '', levedura_clarificante: '', conservante_antiox: '', tanque_vol: '' }],
-      
-      
       analises_mosto: [{ variedade: '', brix: 0, att: 0, ratio: 0, ph: 0, densidade: 0, observacao: '' }],
       analises_vinho: [{ densidade: 0, alcool: 0, acidez: 0, acidez_volatil: 0, so2_total: 0, so2_livre: 0, acucar: 0, cor_620: 0, turbidez: 0 }],
-      
       assinatura_gerencia: '',
       assinatura_analista: '',
     }
@@ -36,41 +58,40 @@ export function WineMonitoringScreen() {
 
   const { fields: recepcaoFields, append: addRecepcao, remove: removeRecepcao } = useFieldArray({ control, name: "recepcoes" });
   const { fields: vinificacaoFields, append: addVinificacao, remove: removeVinificacao } = useFieldArray({ control, name: "vinificacoes" });
-  
-  
   const { fields: mostoFields, append: addMosto, remove: removeMosto } = useFieldArray({ control, name: "analises_mosto" });
   const { fields: vinhoFields, append: addVinho, remove: removeVinho } = useFieldArray({ control, name: "analises_vinho" });
 
-  const onSubmit = (data: WineMonitoringFormData) => {
+  
+  
+  
+  useEffect(() => {
+    const carregarRascunho = async () => {
+      const rascunhoSalvo = await DraftService.getDraft(DRAFT_KEY);
+      if (rascunhoSalvo) {
+        
+        
+        reset(rascunhoSalvo);
+      }
+    };
+    carregarRascunho();
+  }, [reset]);
+
+  const formAtual = watch();
+  useEffect(() => {
+    DraftService.saveDraft(DRAFT_KEY, formAtual);
+  }, [formAtual]);
+  
+
+  const onSubmit = async (data: WineMonitoringFormData) => {
     console.log("Elaboração de Vinhos Salva:", data);
-    Alert.alert("Sucesso", "Monitoramento de Vinhos registado com sucesso!");
+    await DraftService.clearDraft(DRAFT_KEY); 
+    Alert.alert("Sucesso", "Monitoramento de Vinhos registado oficialmente!");
     navigation.goBack();
   };
 
-  const InputGroup = ({ label, name, placeholder, keyboard = 'default', flex = 1 }: any) => (
-    <View style={{ flex }}>
-      <Text style={styles.label}>{label}</Text>
-      <Controller
-        control={control}
-        name={name}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <TextInput
-            style={styles.input}
-            onBlur={onBlur}
-            onChangeText={onChange}
-            value={value ? String(value) : ''}
-            keyboardType={keyboard}
-            placeholder={placeholder}
-            placeholderTextColor="#94A3B8"
-          />
-        )}
-      />
-    </View>
-  );
-
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         
         {/* CABEÇALHO */}
         <View style={styles.header}>
@@ -90,26 +111,26 @@ export function WineMonitoringScreen() {
             {recepcaoFields.map((field, index) => (
               <View key={field.id} style={styles.dynamicCard}>
                 <View style={styles.dynamicHeader}>
-                  <Text style={styles.dynamicTitle}>Lote / Receção #{index + 1}</Text>
+                  <Text style={styles.dynamicTitle}>Lote  /  Receção {index + 1}</Text>
                   {recepcaoFields.length > 1 && (
-                    <TouchableOpacity onPress={() => removeRecepcao(index)}><MaterialIcons name="delete" size={20} color="#EF4444" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeRecepcao(index)}><MaterialIcons name="close" size={20} color="#EF4444" /></TouchableOpacity>
                   )}
                 </View>
                 <View style={styles.row}>
-                  <InputGroup label="Data (DD/MM)" name={`recepcoes.${index}.data_recepcao`} />
-                  <InputGroup label="Produtor" name={`recepcoes.${index}.produtor`} />
+                  <InputGroup control={control} label="Data (DD/MM)" name={`recepcoes.${index}.data_recepcao`} />
+                  <InputGroup control={control} label="Produtor" name={`recepcoes.${index}.produtor`} />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Área" name={`recepcoes.${index}.area`} />
-                  <InputGroup label="Variedade" name={`recepcoes.${index}.variedade`} />
+                  <InputGroup control={control} label="Área" name={`recepcoes.${index}.area`} />
+                  <InputGroup control={control} label="Variedade" name={`recepcoes.${index}.variedade`} />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Qtd. Caixas" name={`recepcoes.${index}.qtd_caixas`} keyboard="numeric" />
-                  <InputGroup label="Peso (Kg)" name={`recepcoes.${index}.peso_uva_kg`} keyboard="numeric" />
+                  <InputGroup control={control} label="Qtd. Caixas" name={`recepcoes.${index}.qtd_caixas`} keyboard="numeric" />
+                  <InputGroup control={control} label="Peso (Kg)" name={`recepcoes.${index}.peso_uva_kg`} keyboard="numeric" />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Volume (L)" name={`recepcoes.${index}.volume_l`} keyboard="numeric" />
-                  <InputGroup label="Rend. Líq (%)" name={`recepcoes.${index}.rendimento_pct`} keyboard="numeric" />
+                  <InputGroup control={control} label="Volume (L)" name={`recepcoes.${index}.volume_l`} keyboard="numeric" />
+                  <InputGroup control={control} label="Rend. Líq (%)" name={`recepcoes.${index}.rendimento_pct`} keyboard="numeric" />
                 </View>
               </View>
             ))}
@@ -127,33 +148,33 @@ export function WineMonitoringScreen() {
             {vinificacaoFields.map((field, index) => (
               <View key={field.id} style={styles.dynamicCard}>
                 <View style={styles.dynamicHeader}>
-                  <Text style={styles.dynamicTitle}>Registo de Vinificação #{index + 1}</Text>
+                  <Text style={styles.dynamicTitle}>Registo de Vinificação {index + 1}</Text>
                   {vinificacaoFields.length > 1 && (
-                    <TouchableOpacity onPress={() => removeVinificacao(index)}><MaterialIcons name="delete" size={20} color="#EF4444" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeVinificacao(index)}><MaterialIcons name="close" size={20} color="#EF4444" /></TouchableOpacity>
                   )}
                 </View>
                 <View style={styles.row}>
-                  <InputGroup label="Data / Hora" name={`vinificacoes.${index}.data_hora`} placeholder="DD/MM - 00:00" />
-                  <InputGroup label="Temp. (°C)" name={`vinificacoes.${index}.temp_c`} keyboard="numeric" />
+                  <InputGroup control={control} label="Data / Hora" name={`vinificacoes.${index}.data_hora`} placeholder="DD/MM - 00:00" />
+                  <InputGroup control={control} label="Temp. (°C)" name={`vinificacoes.${index}.temp_c`} keyboard="numeric" />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Densidade" name={`vinificacoes.${index}.densidade`} keyboard="numeric" />
-                  <InputGroup label="Aroma" name={`vinificacoes.${index}.aroma`} />
+                  <InputGroup control={control} label="Densidade" name={`vinificacoes.${index}.densidade`} keyboard="numeric" />
+                  <InputGroup control={control} label="Aroma" name={`vinificacoes.${index}.aroma`} />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Remontagem" name={`vinificacoes.${index}.remontagem`} />
-                  <InputGroup label="Trasfega" name={`vinificacoes.${index}.trasfega`} />
+                  <InputGroup control={control} label="Remontagem" name={`vinificacoes.${index}.remontagem`} />
+                  <InputGroup control={control} label="Trasfega" name={`vinificacoes.${index}.trasfega`} />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Turbidez" name={`vinificacoes.${index}.turbidez`} />
-                  <InputGroup label="Açúcar/Correção" name={`vinificacoes.${index}.acucar_correcao`} />
+                  <InputGroup control={control} label="Turbidez" name={`vinificacoes.${index}.turbidez`} />
+                  <InputGroup control={control} label="Açúcar/Correção" name={`vinificacoes.${index}.acucar_correcao`} />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Levedura/Clarif." name={`vinificacoes.${index}.levedura_clarificante`} />
-                  <InputGroup label="Conser./Antiox" name={`vinificacoes.${index}.conservante_antiox`} />
+                  <InputGroup control={control} label="Levedura/Clarif." name={`vinificacoes.${index}.levedura_clarificante`} />
+                  <InputGroup control={control} label="Conser./Antiox" name={`vinificacoes.${index}.conservante_antiox`} />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Tanque / Vol.(L)" name={`vinificacoes.${index}.tanque_vol`} placeholder="Ex: TQ01 - 500L" />
+                  <InputGroup control={control} label="Tanque / Vol.(L)" name={`vinificacoes.${index}.tanque_vol`} placeholder="Ex: TQ01 - 500L" />
                 </View>
               </View>
             ))}
@@ -171,23 +192,23 @@ export function WineMonitoringScreen() {
             {mostoFields.map((field, index) => (
               <View key={field.id} style={styles.dynamicCard}>
                 <View style={styles.dynamicHeader}>
-                  <Text style={styles.dynamicTitle}>Amostra Mosto #{index + 1}</Text>
+                  <Text style={styles.dynamicTitle}>Amostra Mosto {index + 1}</Text>
                   {mostoFields.length > 1 && (
-                    <TouchableOpacity onPress={() => removeMosto(index)}><MaterialIcons name="delete" size={20} color="#EF4444" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeMosto(index)}><MaterialIcons name="close" size={20} color="#EF4444" /></TouchableOpacity>
                   )}
                 </View>
                 <View style={styles.row}>
-                  <InputGroup label="Variedade" name={`analises_mosto.${index}.variedade`} flex={2} />
-                  <InputGroup label="°Brix" name={`analises_mosto.${index}.brix`} keyboard="numeric" />
+                  <InputGroup control={control} label="Variedade" name={`analises_mosto.${index}.variedade`} flex={2} />
+                  <InputGroup control={control} label="°Brix" name={`analises_mosto.${index}.brix`} keyboard="numeric" />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="ATT (%)" name={`analises_mosto.${index}.att`} keyboard="numeric" />
-                  <InputGroup label="Ratio" name={`analises_mosto.${index}.ratio`} keyboard="numeric" />
-                  <InputGroup label="pH" name={`analises_mosto.${index}.ph`} keyboard="numeric" />
+                  <InputGroup control={control} label="ATT (%)" name={`analises_mosto.${index}.att`} keyboard="numeric" />
+                  <InputGroup control={control} label="Ratio" name={`analises_mosto.${index}.ratio`} keyboard="numeric" />
+                  <InputGroup control={control} label="pH" name={`analises_mosto.${index}.ph`} keyboard="numeric" />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Dens.(g/cm³)" name={`analises_mosto.${index}.densidade`} keyboard="numeric" />
-                  <InputGroup label="Observações" name={`analises_mosto.${index}.observacao`} flex={2} />
+                  <InputGroup control={control} label="Dens.(g/cm³)" name={`analises_mosto.${index}.densidade`} keyboard="numeric" />
+                  <InputGroup control={control} label="Observações" name={`analises_mosto.${index}.observacao`} flex={2} />
                 </View>
               </View>
             ))}
@@ -205,25 +226,25 @@ export function WineMonitoringScreen() {
             {vinhoFields.map((field, index) => (
               <View key={field.id} style={styles.dynamicCard}>
                 <View style={styles.dynamicHeader}>
-                  <Text style={styles.dynamicTitle}>Amostra Vinho #{index + 1}</Text>
+                  <Text style={styles.dynamicTitle}>Amostra Vinho {index + 1}</Text>
                   {vinhoFields.length > 1 && (
-                    <TouchableOpacity onPress={() => removeVinho(index)}><MaterialIcons name="delete" size={20} color="#EF4444" /></TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeVinho(index)}><MaterialIcons name="close" size={20} color="#EF4444" /></TouchableOpacity>
                   )}
                 </View>
                 <View style={styles.row}>
-                  <InputGroup label="Dens.(g/cm³)" name={`analises_vinho.${index}.densidade`} keyboard="numeric" />
-                  <InputGroup label="Álcool (%)" name={`analises_vinho.${index}.alcool`} keyboard="numeric" />
-                  <InputGroup label="Acidez (g/l)" name={`analises_vinho.${index}.acidez`} keyboard="numeric" />
+                  <InputGroup control={control} label="Dens.(g/cm³)" name={`analises_vinho.${index}.densidade`} keyboard="numeric" />
+                  <InputGroup control={control} label="Álcool (%)" name={`analises_vinho.${index}.alcool`} keyboard="numeric" />
+                  <InputGroup control={control} label="Acidez (g/l)" name={`analises_vinho.${index}.acidez`} keyboard="numeric" />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Ac. Volátil" name={`analises_vinho.${index}.acidez_volatil`} keyboard="numeric" />
-                  <InputGroup label="SO² Total" name={`analises_vinho.${index}.so2_total`} keyboard="numeric" />
-                  <InputGroup label="SO² Livre" name={`analises_vinho.${index}.so2_livre`} keyboard="numeric" />
+                  <InputGroup control={control} label="Ac. Volátil" name={`analises_vinho.${index}.acidez_volatil`} keyboard="numeric" />
+                  <InputGroup control={control} label="SO² Total" name={`analises_vinho.${index}.so2_total`} keyboard="numeric" />
+                  <InputGroup control={control} label="SO² Livre" name={`analises_vinho.${index}.so2_livre`} keyboard="numeric" />
                 </View>
                 <View style={[styles.row, { marginTop: 12 }]}>
-                  <InputGroup label="Açúcar (g/l)" name={`analises_vinho.${index}.acucar`} keyboard="numeric" />
-                  <InputGroup label="Cor (620)" name={`analises_vinho.${index}.cor_620`} keyboard="numeric" />
-                  <InputGroup label="Turb.(NTU)" name={`analises_vinho.${index}.turbidez`} keyboard="numeric" />
+                  <InputGroup control={control} label="Açúcar (g/l)" name={`analises_vinho.${index}.acucar`} keyboard="numeric" />
+                  <InputGroup control={control} label="Cor (620)" name={`analises_vinho.${index}.cor_620`} keyboard="numeric" />
+                  <InputGroup control={control} label="Turb.(NTU)" name={`analises_vinho.${index}.turbidez`} keyboard="numeric" />
                 </View>
               </View>
             ))}
@@ -237,9 +258,9 @@ export function WineMonitoringScreen() {
         {/* 5. ASSINATURAS */}
         <View style={styles.card}>
           <Text style={styles.sectionTitleSmall}>5. Responsáveis</Text>
-          <InputGroup label="Assinatura do Analista" name="assinatura_analista" placeholder="Nome / Visto" />
+          <InputGroup control={control} label="Assinatura do Analista" name="assinatura_analista" placeholder="Nome / Visto" />
           <View style={{ height: 16 }} />
-          <InputGroup label="Assinatura da Gerência" name="assinatura_gerencia" placeholder="Nome / Visto" />
+          <InputGroup control={control} label="Assinatura da Gerência" name="assinatura_gerencia" placeholder="Nome / Visto" />
         </View>
 
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit(onSubmit)} activeOpacity={0.8}>

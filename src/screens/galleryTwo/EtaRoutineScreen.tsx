@@ -305,12 +305,6 @@ export function EtaRoutineScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Registro de Rotina da ETA</Text>
-          <Text style={styles.headerSubtitle}>
-            Grand Valle Industrial - FOR-BP-05
-          </Text>
-        </View>
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Dados Gerais</Text>
@@ -408,22 +402,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 10,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#1E293B", 
-    textAlign: "center",
-    letterSpacing: -0.5, 
-  },
-  headerSubtitle: {
-    fontSize: 14,
-    color: "#64748B", 
-    marginTop: 6,
-    fontWeight: "500",
-  },
-
-  
-  card: {
+   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20, 
     padding: 20,

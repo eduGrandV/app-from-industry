@@ -1,24 +1,33 @@
 import { z } from 'zod';
 
+const sequenciaSchema = z.object({
+  inicio: z.coerce.number().optional(),
+  fim: z.coerce.number().optional(),
+});
+
 export const labExtractionSchema = z.object({
   data: z.date(),
-  variedade: z.string().min(1, "Variedade é obrigatória"),
-  fornecedor: z.string().min(1, "Fornecedor é obrigatório"),
+  variedade: z.string().optional(),
+  fornecedor: z.string().optional(),
   
-  naoh: z.coerce.number().nonnegative(),
-  brix: z.coerce.number().nonnegative(),
-  acidez: z.coerce.number().nonnegative().max(100),
-  ratio: z.coerce.number().optional(), 
-  ph: z.coerce.number().min(0).max(14),
+  naoh: z.coerce.number().optional(),
+  brix: z.coerce.number().optional(),
+  acidez: z.coerce.number().optional(),
+  ph: z.coerce.number().optional(),
+  ratio: z.coerce.number().optional(),
   
-  densidade: z.coerce.number().nonnegative(),
-  aroma: z.string().optional(), 
-  cor: z.string().optional(),   
-  temp: z.coerce.number(),     
+  densidade: z.coerce.number().optional(),
+  temp: z.coerce.number().optional(),
+  aroma: z.string().optional(),
   
-  qtde_bag: z.coerce.number().int().nonnegative(),
-  sequencia: z.coerce.number().int().nonnegative(),
-  volume: z.coerce.number().nonnegative(),
+  
+  cor: z.array(z.string()).optional(), 
+  
+  qtde_bag: z.coerce.number().optional(),
+  volume: z.coerce.number().optional(),
+
+  
+  sequencias: z.array(sequenciaSchema).optional(),
 });
 
 export type LabExtractionFormData = z.infer<typeof labExtractionSchema>;

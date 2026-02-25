@@ -7,9 +7,7 @@ export const cleaningLogSchema = z.object({
 
   ph_agua_inicial: z.coerce.number().min(0).max(14),
 
-  tipo_solucao: z.enum(['S1', 'S2', 'S3', 'S4'] as const, {
-  message: "Selecione o tipo de solução",
-}),
+  tipo_solucao: z.array(z.string()).min(1, "Selecione pelo menos uma solução"),
 
 
   hora_inicio_limpeza: z.string().min(4, "Hora obrigatória"),
