@@ -42,6 +42,14 @@ export function LabDashboard() {
       screen: 'LabWine',
       color: '#FFEBEE',
       iconColor: '#C62828'
+    },
+    {
+      id: 5,
+      title: 'Câmara Fria - Tambores',
+      icon: <MaterialCommunityIcons name="barrel" size={28} color="#0284C7" />,
+      screen: 'TamborEstoque', 
+      color: '#E0F2FE', 
+      iconColor: '#0284C7' 
     }
   ];
 

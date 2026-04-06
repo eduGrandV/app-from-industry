@@ -54,6 +54,7 @@ export const envaseControlSchema = z.object({
   assinatura_operador: z.string().min(1, "Obrigatório"),
   assinatura_analista: z.string().min(1, "Obrigatório"),
   assinatura_gerencia: z.string().min(1, "Obrigatório"),
+  fotos: z.array(z.string()).optional(),
 });
 
 export type EnvaseControlFormData = z.infer<typeof envaseControlSchema>;

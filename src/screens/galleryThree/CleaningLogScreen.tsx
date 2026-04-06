@@ -4,10 +4,11 @@ import {
   cleaningLogSchema,
 } from "../../types/galleryThree/cleaningLogSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Alert,
+  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
@@ -22,6 +23,8 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 
 import { DraftService } from "../../services/DraftService";
+import { AuthContext } from "../../contexts/AuthContext";
+import { api } from "../../services/api";
 
 type ParamList = {
   CleaningLog: { areaName: string };
@@ -133,6 +136,10 @@ export function CleaningLogScreen() {
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { usuarioId } = useContext(AuthContext);
+
   const selectedSolution = watch("tipo_solucao");
 
   useEffect(() => {
@@ -154,277 +161,304 @@ export function CleaningLogScreen() {
   }, [formAtual, DRAFT_KEY]);
 
   const onSubmit = async (data: CleaningLogFormData) => {
-    const nomesLidos =
-      data.tipo_solucao
-        ?.map(
-          (sigla) => SOLUTIONS_MAP[sigla as keyof typeof SOLUTIONS_MAP].name,
-        )
-        .join(", ") || "N/A";
+    try {
+      const nomesLidos =
+        data.tipo_solucao
+          ?.map(
+            (sigla) => SOLUTIONS_MAP[sigla as keyof typeof SOLUTIONS_MAP].name,
+          )
+          .join(", ") || "N/A";
 
-    const dadosFinais = {
-      ...data,
-      nome_solucao_legivel: nomesLidos,
-    };
+      const payload = {
+        ...data,
+        nome_solucao_legivel: nomesLidos,
+        usuarioId: usuarioId,
+      };
 
-    console.log(dadosFinais);
-    await DraftService.clearDraft(DRAFT_KEY);
-    Alert.alert(
-      "Sucesso",
-      `Registro de Limpeza (${areaName}) salvo com sucesso!`,
-    );
-    navigation.goBack();
+      console.log(
+        "📦 SAINDO DO APP (LIMPEZA):",
+        JSON.stringify(payload, null, 2),
+      );
+
+      await api.post("/cleaning", payload);
+
+      Alert.alert(
+        "Sucesso",
+        `Registro de Limpeza (${areaName}) salvo com sucesso!`,
+      );
+      reset({
+        area: areaName,
+        data: new Date(),
+        tipo_solucao: [],
+        operador: "",
+        responsavel_analista: "",
+      });
+    } catch (error: any) {
+      console.error("Erro ao salvar Limpeza:", error);
+      Alert.alert(
+        "Erro",
+        error.response?.data?.error ||
+          "Não foi possível conectar ao servidor para salvar a limpeza.",
+      );
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={150}
       >
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-          <View style={styles.headerIconContainer}>
-            <MaterialCommunityIcons
-              name="spray-bottle"
-              size={28}
-              color="#334155"
-            />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>Registro de Limpeza</Text>
-            <Text style={styles.headerSubtitle}>{areaName}</Text>
-          </View>
-        </View>
-
-        {/* --- DADOS INICIAIS --- */}
-        <View style={styles.card}>
-          <View style={styles.rowMain}>
-            <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={styles.label}>DATA</Text>
-              <Controller
-                control={control}
-                name="data"
-                render={({ field: { value } }) => (
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <MaterialIcons
-                      name="calendar-today"
-                      size={18}
-                      color="#475569"
-                    />
-                    <Text style={styles.dateText}>
-                      {value
-                        ? new Date(value).toLocaleDateString("pt-BR")
-                        : "Hoje"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Cabeçalho */}
+          <View style={styles.header}>
+            <View style={styles.headerIconContainer}>
+              <MaterialCommunityIcons
+                name="spray-bottle"
+                size={28}
+                color="#334155"
               />
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(
-                    event: DateTimePickerEvent,
-                    selectedDate?: Date,
-                  ) => {
-                    setShowDatePicker(Platform.OS === "ios");
-                  }}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.headerTitle}>Registro de Limpeza</Text>
+              <Text style={styles.headerSubtitle}>{areaName}</Text>
+            </View>
+          </View>
+
+          {/* --- DADOS INICIAIS --- */}
+          <View style={styles.card}>
+            <View style={styles.rowMain}>
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={styles.label}>DATA</Text>
+                <Controller
+                  control={control}
+                  name="data"
+                  render={({ field: { value } }) => (
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={18}
+                        color="#475569"
+                      />
+                      <Text style={styles.dateText}>
+                        {value
+                          ? new Date(value).toLocaleDateString("pt-BR")
+                          : "Hoje"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 />
-              )}
-            </View>
-            <InputGroup
-              control={control}
-              label="pH Água Inicial"
-              name="ph_agua_inicial"
-              placeholder="0.0"
-              keyboard="numeric"
-              width="half"
-            />
-          </View>
-        </View>
-
-        {/* --- LIMPEZA / SANITIZAÇÃO --- */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons name="science" size={20} color="#0284C7" />
-            <Text style={[styles.sectionTitle, { color: "#0369A1" }]}>
-              Sanitização Química
-            </Text>
-          </View>
-
-          <View style={styles.sectionBody}>
-            <Text style={styles.subHeader}>
-              Selecione as Soluções (Pode marcar várias)
-            </Text>
-
-            {/* Grid de Soluções Modificado */}
-            <View style={styles.solutionGrid}>
-              <SolutionButton
-                type="S1"
-                selectedSolution={selectedSolution}
-                setValue={setValue}
-              />
-              <SolutionButton
-                type="S2"
-                selectedSolution={selectedSolution}
-                setValue={setValue}
-              />
-              <SolutionButton
-                type="S3"
-                selectedSolution={selectedSolution}
-                setValue={setValue}
-              />
-              <SolutionButton
-                type="S4"
-                selectedSolution={selectedSolution}
-                setValue={setValue}
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(
+                      event: DateTimePickerEvent,
+                      selectedDate?: Date,
+                    ) => {
+                      setShowDatePicker(Platform.OS === "ios");
+                    }}
+                  />
+                )}
+              </View>
+              <InputGroup
+                control={control}
+                label="pH Água Inicial"
+                name="ph_agua_inicial"
+                placeholder="0.0"
+                keyboard="numeric"
+                width="half"
               />
             </View>
-            {errors.tipo_solucao && (
-              <Text style={styles.errorText}>
-                {errors.tipo_solucao.message}
+          </View>
+
+          {/* --- LIMPEZA / SANITIZAÇÃO --- */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialIcons name="science" size={20} color="#0284C7" />
+              <Text style={[styles.sectionTitle, { color: "#0369A1" }]}>
+                Sanitização Química
               </Text>
-            )}
-
-            <View style={styles.divider} />
-
-            <View style={styles.rowMain}>
-              <InputGroup
-                control={control}
-                label="Início (Hora)"
-                name="hora_inicio_limpeza"
-                placeholder="00:00"
-                width="half"
-              />
-              <View style={{ width: 12 }} />
-              <InputGroup
-                control={control}
-                label="Fim (Hora)"
-                name="hora_fim_limpeza"
-                placeholder="00:00"
-                width="half"
-              />
             </View>
 
-            <View style={styles.rowMain}>
+            <View style={styles.sectionBody}>
+              <Text style={styles.subHeader}>
+                Selecione as Soluções (Pode marcar várias)
+              </Text>
+
+              {/* Grid de Soluções Modificado */}
+              <View style={styles.solutionGrid}>
+                <SolutionButton
+                  type="S1"
+                  selectedSolution={selectedSolution}
+                  setValue={setValue}
+                />
+                <SolutionButton
+                  type="S2"
+                  selectedSolution={selectedSolution}
+                  setValue={setValue}
+                />
+                <SolutionButton
+                  type="S3"
+                  selectedSolution={selectedSolution}
+                  setValue={setValue}
+                />
+                <SolutionButton
+                  type="S4"
+                  selectedSolution={selectedSolution}
+                  setValue={setValue}
+                />
+              </View>
+              {errors.tipo_solucao && (
+                <Text style={styles.errorText}>
+                  {errors.tipo_solucao.message}
+                </Text>
+              )}
+
+              <View style={styles.divider} />
+
+              <View style={styles.rowMain}>
+                <InputGroup
+                  control={control}
+                  label="Início (Hora)"
+                  name="hora_inicio_limpeza"
+                  placeholder="00:00"
+                  width="half"
+                />
+                <View style={{ width: 12 }} />
+                <InputGroup
+                  control={control}
+                  label="Fim (Hora)"
+                  name="hora_fim_limpeza"
+                  placeholder="00:00"
+                  width="half"
+                />
+              </View>
+
+              <View style={styles.rowMain}>
+                <InputGroup
+                  control={control}
+                  label="Concentração (%)"
+                  name="concentracao_pct"
+                  placeholder="%"
+                  keyboard="numeric"
+                  width="half"
+                />
+                <View style={{ width: 12 }} />
+                <InputGroup
+                  control={control}
+                  label="Temperatura (°C)"
+                  name="temperatura_c"
+                  placeholder="°C"
+                  keyboard="numeric"
+                  width="half"
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* --- ENXÁGUE --- */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <MaterialCommunityIcons
+                name="water-pump"
+                size={20}
+                color="#059669"
+              />
+              <Text style={[styles.sectionTitle, { color: "#047857" }]}>
+                Enxágue Final
+              </Text>
+            </View>
+
+            <View style={styles.sectionBody}>
+              <View style={styles.rowMain}>
+                <InputGroup
+                  control={control}
+                  label="Início (Hora)"
+                  name="hora_inicio_enxague"
+                  placeholder="00:00"
+                  width="half"
+                />
+                <View style={{ width: 12 }} />
+                <InputGroup
+                  control={control}
+                  label="Fim (Hora)"
+                  name="hora_fim_enxague"
+                  placeholder="00:00"
+                  width="half"
+                />
+              </View>
+              <View style={{ marginTop: 12 }} />
               <InputGroup
                 control={control}
-                label="Concentração (%)"
-                name="concentracao_pct"
-                placeholder="%"
+                label="pH Água de Enxágue"
+                name="ph_agua_enxague"
+                placeholder="0.0"
                 keyboard="numeric"
-                width="half"
-              />
-              <View style={{ width: 12 }} />
-              <InputGroup
-                control={control}
-                label="Temperatura (°C)"
-                name="temperatura_c"
-                placeholder="°C"
-                keyboard="numeric"
-                width="half"
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* --- ENXÁGUE --- */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialCommunityIcons
-              name="water-pump"
-              size={20}
-              color="#059669"
-            />
-            <Text style={[styles.sectionTitle, { color: "#047857" }]}>
-              Enxágue Final
-            </Text>
-          </View>
-
-          <View style={styles.sectionBody}>
-            <View style={styles.rowMain}>
-              <InputGroup
-                control={control}
-                label="Início (Hora)"
-                name="hora_inicio_enxague"
-                placeholder="00:00"
-                width="half"
-              />
-              <View style={{ width: 12 }} />
-              <InputGroup
-                control={control}
-                label="Fim (Hora)"
-                name="hora_fim_enxague"
-                placeholder="00:00"
-                width="half"
-              />
-            </View>
-            <View style={{ marginTop: 12 }} />
-            <InputGroup
-              control={control}
-              label="pH Água de Enxágue"
-              name="ph_agua_enxague"
-              placeholder="0.0"
-              keyboard="numeric"
-              width="full"
-            />
-          </View>
-        </View>
-
-        {/* --- RODAPÉ --- */}
-        <View style={styles.card}>
-          <InputGroup
-            control={control}
-            label="Observações / Ocorrências"
-            name="observacao"
-            placeholder="Digite aqui..."
-            width="full"
-          />
-          <View style={{ height: 16 }} />
-          <InputGroup
-            control={control}
-            label="Nome do Operador"
-            name="operador"
-            placeholder="Quem realizou a limpeza?"
-            width="full"
-          />
-          <View style={{ height: 16 }} />
-          <InputGroup
-            control={control}
-            label="Responsável / Analista"
-            name="responsavel_analista"
-            placeholder="Assinatura do responsável"
-            width="full"
-          />
-
-          {areaName === "Linha de Vinho" && (
-            <>
-              <View style={{ height: 16 }} />
-              <InputGroup
-                control={control}
-                label="Visto da Gerência"
-                name="responsavel_gerencia"
-                placeholder="Assinatura do Gerente"
                 width="full"
               />
-            </>
-          )}
-        </View>
+            </View>
+          </View>
 
-        <TouchableOpacity
-          style={styles.submitButton}
-          onPress={handleSubmit(onSubmit)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.submitText}>Salvar Registro</Text>
-          <MaterialIcons name="save-alt" size={24} color="#fff" />
-        </TouchableOpacity>
-      </ScrollView>
+          {/* --- RODAPÉ --- */}
+          <View style={styles.card}>
+            <InputGroup
+              control={control}
+              label="Observações / Ocorrências"
+              name="observacao"
+              placeholder="Digite aqui..."
+              width="full"
+            />
+            <View style={{ height: 16 }} />
+            <InputGroup
+              control={control}
+              label="Nome do Operador"
+              name="operador"
+              placeholder="Quem realizou a limpeza?"
+              width="full"
+            />
+            <View style={{ height: 16 }} />
+            <InputGroup
+              control={control}
+              label="Responsável / Analista"
+              name="responsavel_analista"
+              placeholder="Assinatura do responsável"
+              width="full"
+            />
+
+            {areaName === "Linha de Vinho" && (
+              <>
+                <View style={{ height: 16 }} />
+                <InputGroup
+                  control={control}
+                  label="Visto da Gerência"
+                  name="responsavel_gerencia"
+                  placeholder="Assinatura do Gerente"
+                  width="full"
+                />
+              </>
+            )}
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={handleSubmit(onSubmit)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.submitText}>Salvar Registro</Text>
+            <MaterialIcons name="save-alt" size={24} color="#fff" />
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

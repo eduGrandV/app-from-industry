@@ -4,6 +4,7 @@ import { LabFruitScreen } from '../screens/galeryOne/LabFruitScreen';
 import { LabExtractionScreen } from '../screens/galeryOne/LabExtractionScreen';
 import { LabBottlingScreen } from '../screens/galeryOne/LabBottlingScreen';
 import { LabWineScreen } from '../screens/galeryOne/LabWineScreen';
+import { TamborEstoqueScreen } from '../screens/galeryOne/TamborEstoqueScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -18,6 +19,7 @@ export function GalleryOneNavigator() {
       <Stack.Screen name="LabExtraction" component={LabExtractionScreen} />
       <Stack.Screen name="LabBottling" component={LabBottlingScreen} />
       <Stack.Screen name="LabWine" component={LabWineScreen} />
+      <Stack.Screen name="TamborEstoque" component={TamborEstoqueScreen} />
     </Stack.Navigator>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   ScrollView,
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Switch,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useForm, Controller, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,17 +22,21 @@ import {
   EtaRoutineFormData,
   etaRoutineSchema,
 } from "../../types/galeryTwo/etaRoutineSchema";
+import { AuthContext } from "../../contexts/AuthContext";
+import { api } from "../../services/api";
 
 export function EtaRoutineScreen() {
+  const { usuarioId, nomeOperador } = useContext(AuthContext);
   const {
     control,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<EtaRoutineFormData>({
     resolver: zodResolver(etaRoutineSchema) as any,
     defaultValues: {
       data: new Date(),
-      responsavel: "",
+      responsavel: nomeOperador || String(usuarioId),
       manha_hora: "",
       tarde_hora: "",
 
@@ -50,13 +55,53 @@ export function EtaRoutineScreen() {
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const phManha = useWatch({ control, name: "manha_ph_agua_bruta" });
   const phTarde = useWatch({ control, name: "tarde_ph_agua_bruta" });
 
-  const onSubmit = (data: EtaRoutineFormData) => {
-    console.log("Formulário ETA Validado:", data);
-    Alert.alert("Sucesso", "Registro FOR-BP-05 salvo!");
+  const onSubmit = async (data: EtaRoutineFormData) => {
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        ...data,
+        usuarioId: usuarioId, // Rastreabilidade garantida!
+      };
+      // console.log("📦 SAINDO DO APP:", JSON.stringify(payload, null, 2));
+
+      await api.post("/eta-routine", payload);
+
+      Alert.alert("Sucesso", "Análise  salva com sucesso!");
+
+      reset({
+        data: new Date(),
+        responsavel: "",
+        manha_hora: "",
+        tarde_hora: "",
+
+        manha_barrilha: undefined,
+        manha_sulfato: undefined,
+        manha_cloro_sol: undefined,
+        tarde_barrilha: undefined,
+        tarde_sulfato: undefined,
+        tarde_cloro_sol: undefined,
+
+        manha_limpeza_filtros: false,
+        manha_abertura_valvulas: false,
+        tarde_limpeza_filtros: false,
+        tarde_abertura_valvulas: false,
+      });
+    } catch (error: any) {
+      console.error("Erro ao salvar :", error);
+      Alert.alert(
+        "Erro",
+        error.response?.data?.error ||
+          "Não foi possível conectar ao servidor para salvar a análise.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const SolutionCard = ({
@@ -302,135 +347,142 @@ export function EtaRoutineScreen() {
     );
   };
 
-  return (
+return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={110}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Dados Gerais</Text>
 
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Dados Gerais</Text>
-
-          <View style={styles.rowMain}>
-            <View style={{ flex: 2, marginRight: 10 }}>
-              <Text style={styles.label}>Data</Text>
-              <Controller
-                control={control}
-                name="data"
-                render={({ field: { value, onChange } }) => (
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <MaterialCommunityIcons
-                      name="calendar"
-                      size={20}
-                      color="#546E7A"
-                    />
-                    <Text style={styles.dateText}>
-                      {value
-                        ? new Date(value).toLocaleDateString("pt-BR")
-                        : "Hoje"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              />
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(
-                    event: DateTimePickerEvent,
-                    selectedDate?: Date,
-                  ) => {
-                    setShowDatePicker(Platform.OS === "ios");
-                    if (selectedDate) {
-                    }
-                  }}
+            <View style={styles.rowMain}>
+              <View style={{ flex: 2, marginRight: 10 }}>
+                <Text style={styles.label}>Data</Text>
+                <Controller
+                  control={control}
+                  name="data"
+                  render={({ field: { value, onChange } }) => (
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <MaterialCommunityIcons
+                        name="calendar"
+                        size={20}
+                        color="#546E7A"
+                      />
+                      <Text style={styles.dateText}>
+                        {value
+                          ? new Date(value).toLocaleDateString("pt-BR")
+                          : "Hoje"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
                 />
-              )}
-            </View>
-
-            <View style={{ flex: 2 }}>
-              <Text style={styles.label}>Responsável</Text>
-              <Controller
-                control={control}
-                name="responsavel"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    style={styles.input}
-                    value={value}
-                    onChangeText={onChange}
-                    placeholder="Nome do operador"
-                    placeholderTextColor="#B0BEC5"
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(
+                      event: DateTimePickerEvent,
+                      selectedDate?: Date,
+                    ) => {
+                      setShowDatePicker(Platform.OS === "ios");
+                      if (selectedDate) {
+                        // Lógica de onChange aqui
+                      }
+                    }}
                   />
                 )}
-              />
+              </View>
+
+              <View style={{ flex: 2 }}>
+                <Text style={styles.label}>Responsável</Text>
+                <Controller
+                  control={control}
+                  name="responsavel"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={styles.input}
+                      value={value}
+                      onChangeText={onChange}
+                      placeholder="Nome do operador"
+                      placeholderTextColor="#B0BEC5"
+                    />
+                  )}
+                />
+              </View>
             </View>
           </View>
-        </View>
 
-        {renderTurno("Manhã", "manha")}
-        {renderTurno("Tarde", "tarde")}
+          {renderTurno("Manhã", "manha")}
+          {renderTurno("Tarde", "tarde")}
 
-        <TouchableOpacity
-          style={styles.submitButton}
-          onPress={handleSubmit(onSubmit)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.submitText}>Salvar Registro Diário</Text>
-          <MaterialCommunityIcons name="check-all" size={24} color="#fff" />
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={handleSubmit(onSubmit)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.submitText}>Salvar Registro Diário</Text>
+            <MaterialCommunityIcons name="check-all" size={24} color="#fff" />
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  
   container: {
     flex: 1,
-    backgroundColor: "#F1F5F9", 
+    backgroundColor: "#F1F5F9",
   },
   content: {
     padding: 20,
-    paddingBottom: 60, 
+    // Removido paddingBottom extra
   },
 
-  
   header: {
     marginBottom: 24,
     alignItems: "center",
     paddingVertical: 10,
   },
-   card: {
+  card: {
     backgroundColor: "#FFFFFF",
-    borderRadius: 20, 
+    borderRadius: 20,
     padding: 20,
     marginBottom: 20,
-    
+
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 3,
     borderWidth: 1,
-    borderColor: "rgba(226, 232, 240, 0.8)", 
+    borderColor: "rgba(226, 232, 240, 0.8)",
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: "700",
-    color: "#334155", 
+    color: "#334155",
     marginBottom: 16,
     letterSpacing: 0.3,
   },
 
-  
   section: {
     backgroundColor: "#FFFFFF",
     borderRadius: 24,
     overflow: "hidden",
     marginBottom: 28,
-    
+
     shadowColor: "#64748B",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
@@ -446,7 +498,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#F1F5F9", 
+    borderBottomColor: "#F1F5F9",
   },
   sectionTitle: {
     fontSize: 18,
@@ -457,7 +509,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
 
-  
   rowMain: {
     flexDirection: "row",
     gap: 12,
@@ -468,34 +519,33 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    color: "#64748B", 
+    color: "#64748B",
     marginBottom: 6,
     fontWeight: "700",
-    textTransform: "uppercase", 
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   input: {
-    borderWidth: 1.5, 
-    borderColor: "#E2E8F0", 
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
     borderRadius: 12,
-    paddingVertical: 12, 
+    paddingVertical: 12,
     paddingHorizontal: 12,
     fontSize: 15,
-    backgroundColor: "#F8FAFC", 
+    backgroundColor: "#F8FAFC",
     color: "#0F172A",
     fontWeight: "500",
   },
   inputWarning: {
-    borderColor: "#FECACA", 
-    backgroundColor: "#FEF2F2", 
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
     color: "#991B1B",
   },
 
-  
   warningBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFF7ED", 
+    backgroundColor: "#FFF7ED",
     borderWidth: 1,
     borderColor: "#FFEDD5",
     padding: 14,
@@ -504,34 +554,32 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   warningText: {
-    color: "#C2410C", 
+    color: "#C2410C",
     fontSize: 13,
     fontWeight: "600",
     flex: 1,
     lineHeight: 18,
   },
 
-  
   subHeader: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#94A3B8", 
+    color: "#94A3B8",
     marginTop: 12,
     marginBottom: 16,
     textTransform: "uppercase",
     letterSpacing: 1,
   },
 
-  
   solutionCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 14,
     padding: 14,
     marginBottom: 14,
-    borderLeftWidth: 5, 
+    borderLeftWidth: 5,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    
+
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.03,
@@ -560,7 +608,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  
   tableHeader: {
     flexDirection: "row",
     marginBottom: 8,
@@ -583,7 +630,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E2E8F0",
     borderRadius: 8,
-    paddingVertical: 8, 
+    paddingVertical: 8,
     paddingHorizontal: 4,
     textAlign: "center",
     fontSize: 14,
@@ -592,7 +639,6 @@ const styles = StyleSheet.create({
     color: "#334155",
   },
 
-  
   operationalBox: {
     backgroundColor: "#F8FAFC",
     borderRadius: 16,
@@ -625,11 +671,11 @@ const styles = StyleSheet.create({
   switchText: {
     fontSize: 12,
     fontWeight: "800",
-    color: "#059669", 
+    color: "#059669",
     letterSpacing: 0.5,
   },
   switchTextInactive: {
-    color: "#CBD5E1", 
+    color: "#CBD5E1",
   },
   separator: {
     height: 1,
@@ -637,7 +683,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
   },
 
-  
   dateButton: {
     flexDirection: "row",
     alignItems: "center",
@@ -661,7 +706,7 @@ const styles = StyleSheet.create({
   },
 
   submitButton: {
-    backgroundColor: "#1E293B", 
+    backgroundColor: "#1E293B",
     borderRadius: 16,
     paddingVertical: 20,
     flexDirection: "row",
@@ -669,7 +714,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     marginTop: 10,
-    
+
     shadowColor: "#1E293B",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,

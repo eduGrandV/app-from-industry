@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import {
   View,
   ScrollView,
@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   SafeAreaView,
+  KeyboardAvoidingView,
 } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -28,6 +29,8 @@ import {
   AREAS_PRAGAS,
   PESTS_LIST,
 } from "../../types/galleryThree/pestControlSchema";
+import { AuthContext } from "../../contexts/AuthContext";
+import { api } from "../../services/api";
 
 const PEST_ICONS: Record<string, any> = {
   Rato: "rodent",
@@ -43,7 +46,7 @@ const PEST_ICONS: Record<string, any> = {
 export function PestControlScreen() {
   const navigation = useNavigation();
 
-  const { control, handleSubmit, setValue, watch } =
+  const { control, handleSubmit, reset, setValue, watch } =
     useForm<PestControlFormData>({
       resolver: zodResolver(pestControlSchema) as any,
       defaultValues: {
@@ -55,24 +58,42 @@ export function PestControlScreen() {
     });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const formValues = watch(); // Para atualizar os contadores visualmente
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = (data: PestControlFormData) => {
-    const ocorrencias = Object.entries(data.registros || {}).filter(
-      ([_, count]) => count > 0,
-    );
+  const { usuarioId } = useContext(AuthContext);
 
-    console.log("Controle de Pragas:", { ...data, ocorrencias });
+  const formValues = watch();
 
-    if (ocorrencias.length > 0) {
+  const onSubmit = async (data: PestControlFormData) => {
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        ...data,
+        usuarioId: usuarioId,
+      };
+      console.log("📦 SAINDO DO APP:", JSON.stringify(payload, null, 2));
+
+      await api.post("/pest-control", payload);
+
+      Alert.alert("Sucesso", "Análise  salva com sucesso!");
+
+      reset({
+        data: new Date(),
+        responsavel: "",
+        observacoes_gerais: "",
+        registros: {},
+      });
+    } catch (error: any) {
+      console.error("Erro ao salvar :", error);
       Alert.alert(
-        "Atenção",
-        `Foram registradas ${ocorrencias.length} ocorrências de pragas.`,
+        "Erro",
+        error.response?.data?.error ||
+          "Não foi possível conectar ao servidor para salvar a análise.",
       );
-    } else {
-      Alert.alert("Sucesso", "Nenhuma praga detectada. Registro salvo!");
+    } finally {
+      setIsSubmitting(false);
     }
-    navigation.goBack();
   };
 
   // Contador Individual
@@ -137,135 +158,148 @@ export function PestControlScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={100}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.headerIconContainer}>
-            <MaterialIcons name="pest-control" size={28} color="#B91C1C" />
-          </View>
-          <View>
-            <Text style={styles.headerTitle}>Controle de Pragas</Text>
-            <Text style={styles.headerSubtitle}>Monitoramento Diário</Text>
-          </View>
-        </View>
-
-        {/* Dados Gerais */}
-        <View style={styles.card}>
-          <Text style={styles.sectionTitleSmall}>DADOS GERAIS</Text>
-          <View style={styles.rowMain}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.label}>DATA</Text>
-              <Controller
-                control={control}
-                name="data"
-                render={({ field: { value } }) => (
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <MaterialIcons
-                      name="calendar-today"
-                      size={18}
-                      color="#475569"
-                    />
-                    <Text style={styles.dateText}>
-                      {value
-                        ? new Date(value).toLocaleDateString("pt-BR")
-                        : "Hoje"}
-                    </Text>
-                  </TouchableOpacity>
-                )}
-              />
-              {showDatePicker && (
-                <DateTimePicker
-                  value={new Date()}
-                  mode="date"
-                  display="default"
-                  onChange={(
-                    event: DateTimePickerEvent,
-                    selectedDate?: Date,
-                  ) => {
-                    setShowDatePicker(Platform.OS === "ios");
-                  }}
-                />
-              )}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <View style={styles.headerIconContainer}>
+              <MaterialIcons name="pest-control" size={28} color="#B91C1C" />
             </View>
+            <View>
+              <Text style={styles.headerTitle}>Controle de Pragas</Text>
+              <Text style={styles.headerSubtitle}>Monitoramento Diário</Text>
+            </View>
+          </View>
 
-            <View style={{ flex: 1.5 }}>
-              <Text style={styles.label}>RESPONSÁVEL</Text>
-              <Controller
-                control={control}
-                name="responsavel"
-                render={({ field: { onChange, value } }) => (
-                  <TextInput
-                    style={styles.input}
-                    onChangeText={onChange}
-                    value={value}
-                    placeholder="Nome"
-                    placeholderTextColor="#94A3B8"
+          {/* Dados Gerais */}
+          <View style={styles.card}>
+            <Text style={styles.sectionTitleSmall}>DADOS GERAIS</Text>
+            <View style={styles.rowMain}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>DATA</Text>
+                <Controller
+                  control={control}
+                  name="data"
+                  render={({ field: { value } }) => (
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <MaterialIcons
+                        name="calendar-today"
+                        size={18}
+                        color="#475569"
+                      />
+                      <Text style={styles.dateText}>
+                        {value
+                          ? new Date(value).toLocaleDateString("pt-BR")
+                          : "Hoje"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                />
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(
+                      event: DateTimePickerEvent,
+                      selectedDate?: Date,
+                    ) => {
+                      setShowDatePicker(Platform.OS === "ios");
+                    }}
                   />
                 )}
-              />
-            </View>
-          </View>
-        </View>
-
-        {/*  LOOP DAS ÁREAS  */}
-        {AREAS_PRAGAS.map((area, index) => (
-          <View key={index} style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionIndex}>
-                <Text style={styles.sectionIndexText}>{index + 1}</Text>
               </View>
-              <Text style={styles.sectionTitle}>{area}</Text>
-            </View>
 
-            <View style={styles.gridPests}>
-              {PESTS_LIST.map((pest) => (
-                <PestCounter key={pest} area={area} pest={pest} />
-              ))}
+              <View style={{ flex: 1.5 }}>
+                <Text style={styles.label}>RESPONSÁVEL</Text>
+                <Controller
+                  control={control}
+                  name="responsavel"
+                  render={({ field: { onChange, value } }) => (
+                    <TextInput
+                      style={styles.input}
+                      onChangeText={onChange}
+                      value={value}
+                      placeholder="Nome"
+                      placeholderTextColor="#94A3B8"
+                    />
+                  )}
+                />
+              </View>
             </View>
           </View>
-        ))}
 
-        {/* Rodapé Obs */}
-        <View style={styles.card}>
-          <Text style={styles.label}>OBSERVAÇÕES GERAIS</Text>
-          <Controller
-            control={control}
-            name="observacoes_gerais"
-            render={({ field: { onChange, value } }) => (
-              <TextInput
-                style={[styles.input, { height: 80, textAlignVertical: "top" }]}
-                onChangeText={onChange}
-                value={value}
-                multiline
-                placeholder="Alguma anomalia encontrada?"
-                placeholderTextColor="#94A3B8"
-              />
-            )}
-          />
-        </View>
+          {/*  LOOP DAS ÁREAS  */}
+          {AREAS_PRAGAS.map((area, index) => (
+            <View key={index} style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <View style={styles.sectionIndex}>
+                  <Text style={styles.sectionIndexText}>{index + 1}</Text>
+                </View>
+                <Text style={styles.sectionTitle}>{area}</Text>
+              </View>
 
-        <TouchableOpacity
-          style={styles.submitButton}
-          onPress={handleSubmit(onSubmit)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.submitText}>Finalizar Monitoramento</Text>
-          <MaterialCommunityIcons name="shield-check" size={24} color="#fff" />
-        </TouchableOpacity>
-      </ScrollView>
+              <View style={styles.gridPests}>
+                {PESTS_LIST.map((pest) => (
+                  <PestCounter key={pest} area={area} pest={pest} />
+                ))}
+              </View>
+            </View>
+          ))}
+
+          {/* Rodapé Obs */}
+          <View style={styles.card}>
+            <Text style={styles.label}>OBSERVAÇÕES GERAIS</Text>
+            <Controller
+              control={control}
+              name="observacoes_gerais"
+              render={({ field: { onChange, value } }) => (
+                <TextInput
+                  style={[
+                    styles.input,
+                    { height: 80, textAlignVertical: "top" },
+                  ]}
+                  onChangeText={onChange}
+                  value={value}
+                  multiline
+                  placeholder="Alguma anomalia encontrada?"
+                  placeholderTextColor="#94A3B8"
+                />
+              )}
+            />
+          </View>
+
+          <TouchableOpacity
+            style={styles.submitButton}
+            onPress={handleSubmit(onSubmit)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.submitText}>Finalizar Monitoramento</Text>
+            <MaterialCommunityIcons
+              name="shield-check"
+              size={24}
+              color="#fff"
+            />
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F1F5F9" },
-  content: { padding: 20, paddingBottom: 60 },
+  content: { padding: 20,  },
 
   header: {
     marginBottom: 24,

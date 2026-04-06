@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from "react";
 import {
   View,
   ScrollView,
@@ -9,37 +9,78 @@ import {
   Text,
   TouchableOpacity,
   SafeAreaView,
-} from 'react-native';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { MaterialIcons } from '@expo/vector-icons';
+  KeyboardAvoidingView,
+} from "react-native";
+import { useForm, Controller } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { MaterialIcons } from "@expo/vector-icons";
 
-import { labFruitSchema, LabFruitFormData } from '../../types/galeryOne/labFruitSchema';
+import {
+  labFruitSchema,
+  LabFruitFormData,
+} from "../../types/galeryOne/labFruitSchema";
+import { AuthContext } from "../../contexts/AuthContext";
+import { api } from "../../services/api";
+import { ActivityIndicator } from "react-native-paper";
 
 export function LabFruitScreen() {
-  const { control, handleSubmit, formState: { errors } } = useForm({
+  const {
+    control,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm({
     resolver: zodResolver(labFruitSchema),
     defaultValues: {
       data: new Date(),
-      variedade: '',
-      area: '',
-      linha: '',
-    }
+      variedade: "",
+      area: "",
+      linha: "",
+    },
   });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const onSubmit = (data: LabFruitFormData) => {
-    console.log("Dados Válidos:", data);
-    Alert.alert("Sucesso", "Análise salva com sucesso!");
+  const { usuarioId } = useContext(AuthContext);
+
+  const onSubmit = async (data: LabFruitFormData) => {
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        ...data,
+        usuarioId: usuarioId, // Rastreabilidade garantida!
+      };
+
+      await api.post("/lab-frutas", payload);
+
+      Alert.alert("Sucesso", "Análise laboratorial salva com sucesso!");
+
+      reset({
+        data: new Date(),
+        variedade: "",
+        area: "",
+        linha: "",
+      });
+    } catch (error: any) {
+      console.error("Erro ao salvar LabFrutas:", error);
+      Alert.alert(
+        "Erro",
+        error.response?.data?.error ||
+          "Não foi possível conectar ao servidor para salvar a análise.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderInput = (
     name: string,
     label: string,
-    keyboardType: 'default' | 'numeric' = 'default',
-    placeholder?: string
+    keyboardType: "default" | "numeric" = "default",
+    placeholder?: string,
   ) => {
     const errorObj = (errors as any)[name];
     const errorMessage = errorObj?.message;
@@ -52,13 +93,10 @@ export function LabFruitScreen() {
           name={name as any}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
-              style={[
-                styles.input,
-                errorMessage && styles.inputError,
-              ]}
+              style={[styles.input, errorMessage && styles.inputError]}
               onBlur={onBlur}
               onChangeText={onChange}
-              value={value ? String(value) : ''}
+              value={value ? String(value) : ""}
               keyboardType={keyboardType}
               placeholder={placeholder || `Digite ${label.toLowerCase()}`}
               placeholderTextColor="#94a3b8"
@@ -66,98 +104,131 @@ export function LabFruitScreen() {
           )}
         />
         {errorMessage && (
-          <Text style={styles.errorText}>
-            {errorMessage as string}
-          </Text>
+          <Text style={styles.errorText}>{errorMessage as string}</Text>
         )}
       </View>
     );
   };
 
-  return (
+return (
     <SafeAreaView style={styles.container}>
-     
-
-      <ScrollView 
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={150}
       >
-        <View style={styles.formSection}>
-          <Text style={styles.sectionTitle}>Dados da Análise</Text>
-          <Text style={styles.sectionSubtitle}>Preencha as informações da análise laboratorial</Text>
-        </View>
-
-        {/* Campo de Data */}
-        <View style={styles.inputContainer}>
-          <Text style={styles.label}>Data da Análise</Text>
-          <Controller
-            control={control}
-            name="data"
-            render={({ field: { value, onChange } }) => (
-              <View>
-                <TouchableOpacity
-                  style={styles.dateButton}
-                  onPress={() => setShowDatePicker(true)}
-                  activeOpacity={0.7}
-                >
-                  <MaterialIcons name="calendar-today" size={20} color="#6200ee" />
-                  <Text style={styles.dateButtonText}>
-                    {value ? new Date(value as any).toLocaleDateString('pt-BR') : 'Selecionar Data'}
-                  </Text>
-                  <MaterialIcons name="chevron-right" size={20} color="#64748b" />
-                </TouchableOpacity>
-
-                {showDatePicker && (
-                  <DateTimePicker
-                    value={value ? new Date(value as any) : new Date()}
-                    mode="date"
-                    display="default"
-                    onChange={(event, selectedDate) => {
-                      setShowDatePicker(Platform.OS === 'ios');
-                      if (selectedDate) onChange(selectedDate);
-                    }}
-                  />
-                )}
-              </View>
-            )}
-          />
-        </View>
-
-        {/* Inputs do Formulário */}
-        {renderInput('variedade', 'Variedade', 'default', 'Digite a variedade da fruta')}
-
-        <View style={styles.row}>
-          <View style={styles.halfInput}>
-            {renderInput('area', 'Área', 'default', 'Ex: Campo 1')}
-          </View>
-          <View style={styles.halfInput}>
-            {renderInput('linha', 'Linha', 'default', 'Ex: Linha A')}
-          </View>
-        </View>
-
-        {renderInput('brix', '°Brix', 'numeric', 'Digite o valor em °Brix')}
-        {renderInput('ph', 'pH', 'numeric', 'Digite o valor do pH')}
-
-        <View style={styles.row}>
-          <View style={styles.halfInput}>
-            {renderInput('acidez', 'Acidez (%)', 'numeric', 'Digite a acidez')}
-          </View>
-          <View style={styles.halfInput}>
-            {renderInput('ratio', 'Ratio', 'numeric', 'Digite o ratio')}
-          </View>
-        </View>
-
-        {renderInput('naoh', 'NaOH', 'numeric', 'Digite o valor de NaOH')}
-
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSubmit(onSubmit)}
-          activeOpacity={0.7}
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
-          <Text style={styles.saveButtonText}>Salvar Análise</Text>
-          <MaterialIcons name="save-alt" size={20} color="#fff" />
-        </TouchableOpacity>
-      </ScrollView>
+          {/* Cabeçalho da Seção */}
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Dados da Análise</Text>
+            <Text style={styles.sectionSubtitle}>
+              Preencha as informações da análise laboratorial
+            </Text>
+          </View>
+
+          {/* Campo de Data */}
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Data da Análise</Text>
+            <Controller
+              control={control}
+              name="data"
+              render={({ field: { value, onChange } }) => (
+                <View>
+                  <TouchableOpacity
+                    style={styles.dateButton}
+                    onPress={() => setShowDatePicker(true)}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons
+                      name="calendar-today"
+                      size={20}
+                      color="#6200ee"
+                    />
+                    <Text style={styles.dateButtonText}>
+                      {value
+                        ? new Date(value as any).toLocaleDateString("pt-BR")
+                        : "Selecionar Data"}
+                    </Text>
+                    <MaterialIcons
+                      name="chevron-right"
+                      size={20}
+                      color="#64748b"
+                    />
+                  </TouchableOpacity>
+
+                  {showDatePicker && (
+                    <DateTimePicker
+                      value={value ? new Date(value as any) : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        setShowDatePicker(Platform.OS === "ios");
+                        if (selectedDate) onChange(selectedDate);
+                      }}
+                    />
+                  )}
+                </View>
+              )}
+            />
+          </View>
+
+          {/* Inputs do Formulário */}
+          {renderInput(
+            "variedade",
+            "Variedade",
+            "default",
+            "Digite a variedade da fruta"
+          )}
+
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              {renderInput("area", "Área", "default", "Ex: Campo 1")}
+            </View>
+            <View style={styles.halfInput}>
+              {renderInput("linha", "Linha", "default", "Ex: Linha A")}
+            </View>
+          </View>
+
+          {renderInput("brix", "°Brix", "numeric", "Digite o valor em °Brix")}
+          {renderInput("ph", "pH", "numeric", "Digite o valor do pH")}
+
+          <View style={styles.row}>
+            <View style={styles.halfInput}>
+              {renderInput(
+                "acidez",
+                "Acidez (%)",
+                "numeric",
+                "Digite a acidez"
+              )}
+            </View>
+            <View style={styles.halfInput}>
+              {renderInput("ratio", "Ratio", "numeric", "Digite o ratio")}
+            </View>
+          </View>
+
+          {renderInput("naoh", "NaOH", "numeric", "Digite o valor de NaOH")}
+
+          <TouchableOpacity
+            style={[styles.saveButton, isSubmitting && { opacity: 0.7 }]}
+            onPress={handleSubmit(onSubmit)}
+            activeOpacity={0.7}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.saveButtonText}>Salvar Análise</Text>
+                <MaterialIcons name="save-alt" size={20} color="#fff" />
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -165,15 +236,15 @@ export function LabFruitScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8fafc',
+    backgroundColor: "#f8fafc",
   },
   header: {
     paddingVertical: 28,
     paddingHorizontal: 24,
-    backgroundColor: '#6200ee',
+    backgroundColor: "#6200ee",
     borderBottomLeftRadius: 20,
     borderBottomRightRadius: 20,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -183,40 +254,41 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   headerContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   headerTitle: {
     fontSize: 28,
-    fontWeight: '700',
-    color: '#fff',
+    fontWeight: "700",
+    color: "#fff",
     marginLeft: 12,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '400',
+    color: "rgba(255, 255, 255, 0.9)",
+    fontWeight: "400",
   },
   content: {
+    flexGrow: 1, // Isso ajuda o ScrollView a se adaptar ao KeyboardAvoidingView
     padding: 20,
     paddingBottom: 40,
   },
   formSection: {
     marginBottom: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   sectionTitle: {
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: "700",
     marginBottom: 8,
-    color: '#1e293b',
+    color: "#1e293b",
   },
   sectionSubtitle: {
     fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-    maxWidth: '80%',
+    color: "#64748b",
+    textAlign: "center",
+    maxWidth: "80%",
     lineHeight: 20,
   },
   inputContainer: {
@@ -224,20 +296,20 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#475569',
+    fontWeight: "600",
+    color: "#475569",
     marginBottom: 8,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 16,
-    backgroundColor: '#fff',
-    color: '#1e293b',
-    shadowColor: '#000',
+    backgroundColor: "#fff",
+    color: "#1e293b",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -247,24 +319,24 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   inputError: {
-    borderColor: '#ef4444',
+    borderColor: "#ef4444",
   },
   errorText: {
-    color: '#ef4444',
+    color: "#ef4444",
     fontSize: 12,
     marginTop: 6,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   dateButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: "#e2e8f0",
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
+    backgroundColor: "#fff",
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 1,
@@ -276,27 +348,27 @@ const styles = StyleSheet.create({
   dateButtonText: {
     flex: 1,
     fontSize: 16,
-    color: '#1e293b',
+    color: "#1e293b",
     marginLeft: 12,
   },
   row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     gap: 16,
   },
   halfInput: {
     flex: 1,
   },
   saveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6200ee',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#6200ee",
     borderRadius: 12,
     paddingVertical: 16,
     marginTop: 32,
     gap: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: {
       width: 0,
       height: 4,
@@ -307,7 +379,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#fff',
+    fontWeight: "600",
+    color: "#fff",
   },
 });

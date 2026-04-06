@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import {
   WaterQualityFormData,
   waterQualitySchema,
 } from "../../types/galeryTwo/waterQualitySchema";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { ScrollView, TextInput } from "react-native-gesture-handler";
 import { MaterialCommunityIcons, MaterialIcons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -21,6 +22,8 @@ import DateTimePicker, {
 } from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { DraftService } from "../../services/DraftService";
+import { AuthContext } from "../../contexts/AuthContext";
+import { api } from "../../services/api";
 
 const DRAFT_KEY = "@draft_water_quality";
 
@@ -165,6 +168,9 @@ const RenderSection = ({ turno, prefixo, color, control, errors }: any) => (
 export function WaterQualityScreen() {
   const navigation = useNavigation();
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { usuarioId, nomeOperador } = useContext(AuthContext);
 
   const {
     control,
@@ -176,7 +182,7 @@ export function WaterQualityScreen() {
     resolver: zodResolver(waterQualitySchema) as any,
     defaultValues: {
       data: new Date(),
-      responsavel: "",
+      responsavel: nomeOperador || String(usuarioId),
       manha_hora: "",
       manha_obs: "",
       tarde_hora: "",
@@ -203,104 +209,140 @@ export function WaterQualityScreen() {
   }, [formAtual]);
 
   const onSubmit = async (data: WaterQualityFormData) => {
-    console.log("Salvo:", data);
-    await DraftService.clearDraft(DRAFT_KEY);
-    Alert.alert("Sucesso", "Controle de ETA salvo e rascunho limpo!");
-    navigation.goBack();
+    setIsSubmitting(true);
+
+    try {
+      const payload = {
+        ...data,
+        usuarioId: usuarioId,
+      };
+
+      await api.post("/water-quality", payload);
+
+      Alert.alert("Sucesso", "Análise  salva com sucesso!");
+
+      reset({
+        data: new Date(),
+        responsavel: "",
+        manha_hora: "",
+        manha_obs: "",
+        tarde_hora: "",
+        tarde_obs: "",
+      });
+    } catch (error: any) {
+      console.error("Erro ao salvar LabFrutas:", error);
+      Alert.alert(
+        "Erro",
+        error.response?.data?.error ||
+          "Não foi possível conectar ao servidor para salvar a análise.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={120}
       >
-        {/* --- CABEÇALHO GERAL (DATA E RESPONSÁVEL) --- */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Dados do Dia</Text>
+        <ScrollView
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* --- CABEÇALHO GERAL (DATA E RESPONSÁVEL) --- */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Dados do Dia</Text>
 
-          {/* Data */}
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>Data do Registro</Text>
-            <Controller
+            {/* Data */}
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>Data do Registro</Text>
+              <Controller
+                control={control}
+                name="data"
+                render={({ field: { value, onChange } }) => (
+                  <View>
+                    <TouchableOpacity
+                      style={styles.dateButton}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <MaterialIcons name="event" size={20} color="#6200ee" />
+                      <Text style={styles.dateButtonText}>
+                        {value
+                          ? new Date(value).toLocaleDateString("pt-BR")
+                          : "Selecionar"}
+                      </Text>
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={value ? new Date(value) : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(event, selectedDate) => {
+                          setShowDatePicker(Platform.OS === "ios");
+                          if (selectedDate) onChange(selectedDate);
+                        }}
+                      />
+                    )}
+                  </View>
+                )}
+              />
+            </View>
+
+            {/* Responsável (Assinatura) */}
+            <RenderInput
+              name="responsavel"
+              label="Responsável Técnico"
+              placeholder="Nome ou Rubrica"
               control={control}
-              name="data"
-              render={({ field: { value, onChange } }) => (
-                <View>
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowDatePicker(true)}
-                  >
-                    <MaterialIcons name="event" size={20} color="#6200ee" />
-                    <Text style={styles.dateButtonText}>
-                      {value
-                        ? new Date(value).toLocaleDateString("pt-BR")
-                        : "Selecionar"}
-                    </Text>
-                  </TouchableOpacity>
-                  {showDatePicker && (
-                    <DateTimePicker
-                      value={value ? new Date(value) : new Date()}
-                      mode="date"
-                      display="default"
-                      onChange={(event, selectedDate) => {
-                        setShowDatePicker(Platform.OS === "ios");
-                        if (selectedDate) onChange(selectedDate);
-                      }}
-                    />
-                  )}
-                </View>
-              )}
+              errors={errors}
+              keyboardType="default"
+              width="full"
             />
           </View>
 
-          {/* Responsável (Assinatura) */}
-          <RenderInput
-            name="responsavel"
-            label="Responsável Técnico"
-            placeholder="Nome ou Rubrica"
+          {/* --- TURNO MANHÃ --- */}
+          <RenderSection
+            turno="Manhã"
+            prefixo="manha"
+            color="#FF9800"
             control={control}
             errors={errors}
-            keyboardType="default"
-            width="full"
           />
-        </View>
 
-        {/* --- TURNO MANHÃ --- */}
-        <RenderSection
-          turno="Manhã"
-          prefixo="manha"
-          color="#FF9800"
-          control={control}
-          errors={errors}
-        />
+          {/* --- TURNO TARDE --- */}
+          <RenderSection
+            turno="Tarde"
+            prefixo="tarde"
+            color="#3F51B5"
+            control={control}
+            errors={errors}
+          />
 
-        {/* --- TURNO TARDE --- */}
-        <RenderSection
-          turno="Tarde"
-          prefixo="tarde"
-          color="#3F51B5"
-          control={control}
-          errors={errors}
-        />
-
-        <TouchableOpacity
-          style={styles.saveButton}
-          onPress={handleSubmit(onSubmit)}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.saveButtonText}>Finalizar Diário</Text>
-          <MaterialIcons name="check-circle" size={24} color="#fff" />
-        </TouchableOpacity>
-      </ScrollView>
+          <TouchableOpacity
+            style={styles.saveButton}
+            onPress={handleSubmit(onSubmit)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.saveButtonText}>Finalizar Diário</Text>
+            <MaterialIcons name="check-circle" size={24} color="#fff" />
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8fafc" },
-  content: { padding: 20, paddingBottom: 40 },
+  content: {
+    flexGrow: 1,
+    padding: 20,
+    
+  },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
