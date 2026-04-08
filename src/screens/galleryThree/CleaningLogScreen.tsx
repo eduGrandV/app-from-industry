@@ -215,7 +215,7 @@ export function CleaningLogScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Cabeçalho */}
+          
           <View style={styles.header}>
             <View style={styles.headerIconContainer}>
               <MaterialCommunityIcons
@@ -230,7 +230,7 @@ export function CleaningLogScreen() {
             </View>
           </View>
 
-          {/* --- DADOS INICIAIS --- */}
+          
           <View style={styles.card}>
             <View style={styles.rowMain}>
               <View style={{ flex: 1, marginRight: 12 }}>
@@ -281,7 +281,7 @@ export function CleaningLogScreen() {
             </View>
           </View>
 
-          {/* --- LIMPEZA / SANITIZAÇÃO --- */}
+          
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="science" size={20} color="#0284C7" />
@@ -295,7 +295,7 @@ export function CleaningLogScreen() {
                 Selecione as Soluções (Pode marcar várias)
               </Text>
 
-              {/* Grid de Soluções Modificado */}
+              
               <View style={styles.solutionGrid}>
                 <SolutionButton
                   type="S1"
@@ -366,7 +366,7 @@ export function CleaningLogScreen() {
             </View>
           </View>
 
-          {/* --- ENXÁGUE --- */}
+          
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <MaterialCommunityIcons
@@ -409,7 +409,7 @@ export function CleaningLogScreen() {
             </View>
           </View>
 
-          {/* --- RODAPÉ --- */}
+          
           <View style={styles.card}>
             <InputGroup
               control={control}

@@ -240,7 +240,7 @@ export function ExtractionControlScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CABEÇALHO */}
+          
           <View style={styles.header}>
             <View style={styles.headerIconContainer}>
               <MaterialCommunityIcons
@@ -263,7 +263,7 @@ export function ExtractionControlScreen() {
             </View>
           </View>
 
-          {/* 1. RECEPÇÃO DA UVA */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Recepção da Uva</Text>
             <View style={styles.sectionBody}>
@@ -359,7 +359,7 @@ export function ExtractionControlScreen() {
             </View>
           </View>
 
-          {/* 2. INSUMOS */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>2. Insumos</Text>
             <View style={styles.sectionBody}>
@@ -399,7 +399,7 @@ export function ExtractionControlScreen() {
             </View>
           </View>
 
-          {/* 3. CONTROLE DE TEMPERATURA */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>3. Controle de Temperatura</Text>
             <View style={styles.sectionBody}>
@@ -421,7 +421,7 @@ export function ExtractionControlScreen() {
             </View>
           </View>
 
-          {/* 4. ANÁLISES */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Análise Físico-Química</Text>
             <View style={styles.sectionBody}>
@@ -438,7 +438,7 @@ export function ExtractionControlScreen() {
             </View>
           </View>
 
-          {/* 5. ESTABILIZAÇÃO / TAMBORES (LISTA DINÂMICA) */}
+          
           <View style={styles.section}>
             <View
               style={[
@@ -500,7 +500,7 @@ export function ExtractionControlScreen() {
             </View>
           </View>
 
-          {/* 6. ASSINATURAS E OBS */}
+          
           <View style={styles.card}>
             <InputGroup
               control={control}

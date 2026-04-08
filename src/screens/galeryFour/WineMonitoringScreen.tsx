@@ -248,7 +248,7 @@ export function WineMonitoringScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CABEÇALHO */}
+          
           <View style={styles.header}>
             <View
               style={[
@@ -270,7 +270,7 @@ export function WineMonitoringScreen() {
             </View>
           </View>
 
-          {/* 1. RECEPÇÃO DE UVA */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Recepção de Uva</Text>
             <View style={styles.sectionBody}>
@@ -365,7 +365,7 @@ export function WineMonitoringScreen() {
             </View>
           </View>
 
-          {/* 2. MONITORAMENTO DE VINIFICAÇÃO */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               2. Monitoramento de Vinificação
@@ -488,7 +488,7 @@ export function WineMonitoringScreen() {
             </View>
           </View>
 
-          {/* 3. ANÁLISES DO MOSTO */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>3. Análises do Mosto</Text>
             <View style={styles.sectionBody}>
@@ -578,7 +578,7 @@ export function WineMonitoringScreen() {
             </View>
           </View>
 
-          {/* 4. ANÁLISES DO VINHO */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Análises do Vinho</Text>
             <View style={styles.sectionBody}>
@@ -682,7 +682,7 @@ export function WineMonitoringScreen() {
             </View>
           </View>
 
-          {/* 5. ASSINATURAS */}
+          
           <View style={styles.card}>
             <Text style={styles.sectionTitleSmall}>5. Responsáveis</Text>
             <InputGroup

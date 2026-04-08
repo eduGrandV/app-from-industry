@@ -19,8 +19,6 @@ const perdaEmbalagemSchema = z.object({
   quebra_estoque: z.coerce.number().nonnegative().optional(),
 });
 
-
-
 const recepcaoSchema = z.object({
   turno: z.string().optional(),
   produtor: z.string().optional(),
@@ -36,7 +34,6 @@ const recepcaoSchema = z.object({
 });
 
 const ingredientesSchema = z.object({
-  ref_lote: z.string().optional(), 
   ingrediente_fruta: ingredienteSchema,
   ingrediente_agua: ingredienteSchema,
   ingrediente_acucar: ingredienteSchema,
@@ -45,13 +42,11 @@ const ingredientesSchema = z.object({
 });
 
 const analisesSchema = z.object({
-  ref_lote: z.string().optional(), 
   analise_fruta: analiseSchema,
   analise_doce: analiseSchema,
 });
 
 const perdasProducaoSchema = z.object({
-  ref_lote: z.string().optional(),
   perda_ponto_preto: z.coerce.number().nonnegative().optional(),
   perda_corpo_estranho: z.coerce.number().nonnegative().optional(),
   perda_pote_quebrado: z.coerce.number().nonnegative().optional(),
@@ -62,23 +57,38 @@ const perdasProducaoSchema = z.object({
 });
 
 const perdasEmbalagemSchema = z.object({
-  ref_lote: z.string().optional(),
   emb_potes: perdaEmbalagemSchema,
   emb_tampas: perdaEmbalagemSchema,
   emb_rotulos: perdaEmbalagemSchema,
 });
 
+
+const brixHorarioSchema = z.object({
+  horario: z.string().optional(),
+  brix: z.coerce.number().optional(),
+});
+
 export const sweetsMonitoringSchema = z.object({
   data: z.date(),
+  lote_produto: z.string().min(1, "O Lote do Produto é obrigatório"), // 👈 LOTE GERAL AQUI
   
   recepcoes: z.array(recepcaoSchema).min(1),
   ingredientes: z.array(ingredientesSchema).min(1),
   analises: z.array(analisesSchema).min(1),
   perdas_producao: z.array(perdasProducaoSchema).min(1),
   perdas_embalagem: z.array(perdasEmbalagemSchema).min(1),
+
+  hora_ini_envase: z.string().optional(),
+  hora_fim_envase: z.string().optional(),
+  hora_ini_pasteurizacao: z.string().optional(),
+  hora_fim_pasteurizacao: z.string().optional(),
+  
+  brix_horarios: z.array(brixHorarioSchema).optional(),
   
   observacoes: z.string().optional(),
   assinatura_responsavel: z.string().min(1, "Assinatura obrigatória"),
 });
+
+
 
 export type SweetsMonitoringFormData = z.infer<typeof sweetsMonitoringSchema>;

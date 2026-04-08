@@ -1,31 +1,29 @@
 import React, { useState, useEffect, useContext } from "react";
 import {
   View,
+  Text,
+  TextInput,
+  TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Platform,
   Alert,
-  TextInput,
-  Text,
-  TouchableOpacity,
   SafeAreaView,
   KeyboardAvoidingView,
+  StyleSheet,
 } from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
-import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
 
-import {
-  packagingMonitoringSchema,
-  PackagingMonitoringFormData,
-} from "../../types/galleryFour/packagingMonitoringSchema";
-import { DraftService } from "../../services/DraftService";
+
 import { AuthContext } from "../../contexts/AuthContext";
 import { api } from "../../services/api";
+import { DraftService } from "../../services/DraftService";
+import { PackagingMonitoringFormData, packagingMonitoringSchema } from "../../types/galleryFour/packagingMonitoringSchema";
 
 const DRAFT_KEY = "@draft_packaging_monitoring";
 
@@ -62,32 +60,36 @@ export function PackagingMonitoringScreen() {
   const { usuarioId } = useContext(AuthContext);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const emptyRegistro = {
+    horario: "",
+    past_pressao: 0,
+    past_temp_agua: 0,
+    past_temp_suco: 0,
+    lav_temp: 0,
+    envase_bomba_hz: 0,
+    envase_temp_atual: 0,
+    envase_temp_garrafa: 0,
+    tamp_vazao: 0,
+    tamp_perda: 0,
+    observacao: "",
+  };
 
   const { control, handleSubmit, reset, watch } =
     useForm<PackagingMonitoringFormData>({
       resolver: zodResolver(packagingMonitoringSchema) as any,
       defaultValues: {
         data: new Date(),
-        registros: [
-          {
-            horario: "",
-            past_pressao: 0,
-            past_temp_agua: 0,
-            past_temp_suco: 0,
-            lav_temp: 0,
-            envase_bomba_hz: 0,
-            envase_temp_atual: 0,
-            envase_temp_garrafa: 0,
-            tamp_vazao: 0,
-            tamp_perda: 0,
-            observacao: "",
-            modelo_garrafa: "",
-            jornada_inicio: "",
-            jornada_almoco_ini: "",
-            jornada_almoco_fim: "",
-            jornada_fim: "",
-          },
-        ],
+        lote: "",
+        registros: [emptyRegistro],
+
+        modelo_garrafa: "",
+        jornada_inicio: "",
+        jornada_almoco_ini: "",
+        jornada_almoco_fim: "",
+        jornada_fim: "",
+        assinatura_operador: "",
       },
     });
 
@@ -100,15 +102,12 @@ export function PackagingMonitoringScreen() {
     name: "registros",
   });
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
   useEffect(() => {
     const carregarRascunho = async () => {
       const rascunhoSalvo = await DraftService.getDraft(DRAFT_KEY);
       if (rascunhoSalvo) {
-        if (rascunhoSalvo.data) {
+        if (rascunhoSalvo.data)
           rascunhoSalvo.data = new Date(rascunhoSalvo.data);
-        }
         reset(rascunhoSalvo);
       }
     };
@@ -122,47 +121,26 @@ export function PackagingMonitoringScreen() {
 
   const onSubmit = async (data: PackagingMonitoringFormData) => {
     setIsSubmitting(true);
-
     try {
-      const payload = {
-        ...data,
-        usuarioId: usuarioId, // Rastreabilidade garantida!
-      };
-
+      const payload = { ...data, usuarioId: usuarioId };
       await api.post("/packaging", payload);
-
-      Alert.alert("Sucesso", "Análise salva com sucesso!");
-      console.log(payload);
+      Alert.alert("Sucesso", "Monitoramento salvo com sucesso!");
 
       reset({
         data: new Date(),
-        registros: [
-          {
-            horario: "",
-            past_pressao: 0,
-            past_temp_agua: 0,
-            past_temp_suco: 0,
-            lav_temp: 0,
-            envase_bomba_hz: 0,
-            envase_temp_atual: 0,
-            envase_temp_garrafa: 0,
-            tamp_vazao: 0,
-            tamp_perda: 0,
-            observacao: "",
-            modelo_garrafa: "",
-            jornada_inicio: "",
-            jornada_almoco_ini: "",
-            jornada_almoco_fim: "",
-            jornada_fim: "",
-          },
-        ],
+        lote: "",
+        registros: [emptyRegistro],
+        modelo_garrafa: "",
+        jornada_inicio: "",
+        jornada_almoco_ini: "",
+        jornada_almoco_fim: "",
+        jornada_fim: "",
+        assinatura_operador: "",
       });
     } catch (error: any) {
-      console.error("Erro ao salvar LabFrutas:", error);
       Alert.alert(
         "Erro",
-        error.response?.data?.error ||
-          "Não foi possível conectar ao servidor para salvar a análise.",
+        error.response?.data?.error || "Erro ao salvar análise.",
       );
     } finally {
       setIsSubmitting(false);
@@ -181,7 +159,7 @@ export function PackagingMonitoringScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CABEÇALHO */}
+          
           <View style={styles.header}>
             <View
               style={[
@@ -203,7 +181,7 @@ export function PackagingMonitoringScreen() {
             </View>
           </View>
 
-          {/* 1. DADOS GERAIS */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Identificação Geral</Text>
             <View style={styles.sectionBody}>
@@ -257,17 +235,16 @@ export function PackagingMonitoringScreen() {
             </View>
           </View>
 
-          {/* 2. REGISTROS DO LOTE */}
+          
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>2. Controles do Lote</Text>
+            <Text style={styles.sectionTitle}>
+              2. Leituras dos Equipamentos
+            </Text>
             <View style={styles.sectionBody}>
               {registrosFields.map((field, index) => (
                 <View key={field.id} style={styles.dynamicCard}>
                   <View style={styles.dynamicHeader}>
-                    <Text style={styles.dynamicTitle}>
-                      CONTROLE / LOTE {index + 1}
-                    </Text>
-
+                    <Text style={styles.dynamicTitle}>LEITURA {index + 1}</Text>
                     {registrosFields.length > 1 && (
                       <TouchableOpacity
                         onPress={() => removeRegistro(index)}
@@ -278,7 +255,7 @@ export function PackagingMonitoringScreen() {
                     )}
                   </View>
 
-                  {/* Linha: Horário e Observações */}
+                  
                   <View
                     style={[
                       styles.equipBlock,
@@ -308,7 +285,7 @@ export function PackagingMonitoringScreen() {
                     </View>
                   </View>
 
-                  {/* Sub-bloco: Pasteurizador */}
+                  
                   <View style={styles.equipBlock}>
                     <Text style={styles.equipTitle}>
                       <MaterialCommunityIcons
@@ -320,7 +297,7 @@ export function PackagingMonitoringScreen() {
                     <View style={styles.row}>
                       <InputGroup
                         control={control}
-                        label="Pressão (Kgf/cm²)"
+                        label="Pressão (Kgf)"
                         name={`registros.${index}.past_pressao`}
                         keyboard="numeric"
                       />
@@ -332,14 +309,14 @@ export function PackagingMonitoringScreen() {
                       />
                       <InputGroup
                         control={control}
-                        label="T. Suco Saída (°C)"
+                        label="T. Suco (°C)"
                         name={`registros.${index}.past_temp_suco`}
                         keyboard="numeric"
                       />
                     </View>
                   </View>
 
-                  {/* Sub-bloco: Lavadora e Envase */}
+                  
                   <View style={styles.equipBlock}>
                     <Text style={styles.equipTitle}>
                       <MaterialCommunityIcons name="water-pump" size={14} />{" "}
@@ -348,13 +325,13 @@ export function PackagingMonitoringScreen() {
                     <View style={styles.row}>
                       <InputGroup
                         control={control}
-                        label="Lavadora: T.(°C)"
+                        label="Lav: T.(°C)"
                         name={`registros.${index}.lav_temp`}
                         keyboard="numeric"
                       />
                       <InputGroup
                         control={control}
-                        label="Envase: Bomba(Hz)"
+                        label="Env: Bomba(Hz)"
                         name={`registros.${index}.envase_bomba_hz`}
                         keyboard="numeric"
                       />
@@ -362,20 +339,20 @@ export function PackagingMonitoringScreen() {
                     <View style={[styles.row, { marginTop: 10 }]}>
                       <InputGroup
                         control={control}
-                        label="Envase: T. Atual(°C)"
+                        label="Env: T. Atual(°C)"
                         name={`registros.${index}.envase_temp_atual`}
                         keyboard="numeric"
                       />
                       <InputGroup
                         control={control}
-                        label="Envase: T. Garrafa(°C)"
+                        label="Env: T. Garrafa(°C)"
                         name={`registros.${index}.envase_temp_garrafa`}
                         keyboard="numeric"
                       />
                     </View>
                   </View>
 
-                  {/* Sub-bloco: Tampadora */}
+                  
                   <View style={styles.equipBlock}>
                     <Text style={styles.equipTitle}>
                       <MaterialCommunityIcons name="bottle-tonic" size={14} />{" "}
@@ -384,7 +361,7 @@ export function PackagingMonitoringScreen() {
                     <View style={styles.row}>
                       <InputGroup
                         control={control}
-                        label="Vazão (unid./h)"
+                        label="Vazão (un/h)"
                         name={`registros.${index}.tamp_vazao`}
                         keyboard="numeric"
                       />
@@ -396,109 +373,71 @@ export function PackagingMonitoringScreen() {
                       />
                     </View>
                   </View>
-
-                  {/* --- CONTROLE DE JORNADA E PRODUTO --- */}
-                  <View
-                    style={[
-                      styles.equipBlock,
-                      {
-                        backgroundColor: "#F0FDFA",
-                        marginHorizontal: -16,
-                        paddingHorizontal: 16,
-                        paddingBottom: 16,
-                        borderBottomLeftRadius: 12,
-                        borderBottomRightRadius: 12,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.equipTitle,
-                        { color: "#0F766E", marginTop: 12 },
-                      ]}
-                    >
-                      <MaterialCommunityIcons
-                        name="clock-check-outline"
-                        size={14}
-                      />{" "}
-                      Fechamento do Lote
-                    </Text>
-                    <View style={styles.row}>
-                      <InputGroup
-                        control={control}
-                        label="Modelo de Garrafa"
-                        name={`registros.${index}.modelo_garrafa`}
-                        placeholder="Ex: Vidro 1L"
-                      />
-                    </View>
-                    <View style={[styles.row, { marginTop: 10 }]}>
-                      <InputGroup
-                        control={control}
-                        label="Início Processo"
-                        name={`registros.${index}.jornada_inicio`}
-                        placeholder="00:00"
-                      />
-                      <InputGroup
-                        control={control}
-                        label="Fim Processo"
-                        name={`registros.${index}.jornada_fim`}
-                        placeholder="00:00"
-                      />
-                    </View>
-                    <View style={[styles.row, { marginTop: 10 }]}>
-                      <InputGroup
-                        control={control}
-                        label="Almoço (Início)"
-                        name={`registros.${index}.jornada_almoco_ini`}
-                        placeholder="00:00"
-                      />
-                      <InputGroup
-                        control={control}
-                        label="Almoço (Fim)"
-                        name={`registros.${index}.jornada_almoco_fim`}
-                        placeholder="00:00"
-                      />
-                    </View>
-                  </View>
                 </View>
               ))}
 
               <TouchableOpacity
                 style={styles.addButton}
-                onPress={() =>
-                  addRegistro({
-                    horario: "",
-                    past_pressao: 0,
-                    past_temp_agua: 0,
-                    past_temp_suco: 0,
-                    lav_temp: 0,
-                    envase_bomba_hz: 0,
-                    envase_temp_atual: 0,
-                    envase_temp_garrafa: 0,
-                    tamp_vazao: 0,
-                    tamp_perda: 0,
-                    observacao: "",
-                    modelo_garrafa: "",
-                    jornada_inicio: "",
-                    jornada_almoco_ini: "",
-                    jornada_almoco_fim: "",
-                    jornada_fim: "",
-                  })
-                }
+                onPress={() => addRegistro(emptyRegistro)}
               >
                 <MaterialIcons
                   name="add-circle-outline"
                   size={20}
                   color="#0F766E"
                 />
-                <Text style={styles.addText}>Adicionar Novo Lote</Text>
+                <Text style={styles.addText}>Adicionar Nova Leitura</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {/* 3. ASSINATURAS */}
+          
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              3. Fechamento do Lote e Jornada
+            </Text>
+            <View style={styles.sectionBody}>
+              <View style={styles.row}>
+                <InputGroup
+                  control={control}
+                  label="Modelo de Garrafa"
+                  name="modelo_garrafa"
+                  placeholder="Ex: Vidro 1L"
+                />
+              </View>
+              <View style={[styles.row, { marginTop: 12 }]}>
+                <InputGroup
+                  control={control}
+                  label="Início Processo"
+                  name="jornada_inicio"
+                  placeholder="00:00"
+                />
+                <InputGroup
+                  control={control}
+                  label="Fim Processo"
+                  name="jornada_fim"
+                  placeholder="00:00"
+                />
+              </View>
+              <View style={[styles.row, { marginTop: 12 }]}>
+                <InputGroup
+                  control={control}
+                  label="Almoço (Início)"
+                  name="jornada_almoco_ini"
+                  placeholder="00:00"
+                />
+                <InputGroup
+                  control={control}
+                  label="Almoço (Fim)"
+                  name="jornada_almoco_fim"
+                  placeholder="00:00"
+                />
+              </View>
+            </View>
+          </View>
+
+          
           <View style={styles.card}>
-            <Text style={styles.sectionTitleSmall}>3. Validação</Text>
+            <Text style={styles.sectionTitleSmall}>4. Validação</Text>
             <InputGroup
               control={control}
               label="Assinatura do Operador"
@@ -511,13 +450,22 @@ export function PackagingMonitoringScreen() {
             style={styles.submitButton}
             onPress={handleSubmit(onSubmit)}
             activeOpacity={0.8}
+            disabled={isSubmitting}
           >
-            <Text style={styles.submitText}>Salvar Monitoramento Oficial</Text>
-            <MaterialCommunityIcons
-              name="content-save-all"
-              size={24}
-              color="#fff"
-            />
+            <View
+              style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
+            >
+              <Text style={styles.submitText}>
+                {isSubmitting ? "Salvando..." : "Salvar Monitoramento"}
+              </Text>
+              {!isSubmitting && (
+                <MaterialCommunityIcons
+                  name="content-save-all"
+                  size={24}
+                  color="#fff"
+                />
+              )}
+            </View>
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

@@ -21,7 +21,9 @@ export const labExtractionSchema = z.object({
   aroma: z.string().optional(),
   
   
-  cor: z.array(z.string()).optional(), 
+  cor_420nm: z.coerce.number().optional(),
+  cor_520nm: z.coerce.number().optional(),
+  cor_620nm: z.coerce.number().optional(),
   
   qtde_bag: z.coerce.number().optional(),
   volume: z.coerce.number().optional(),

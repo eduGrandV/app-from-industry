@@ -41,7 +41,9 @@ export function LabBottlingScreen() {
       ratio: "",
       ph: "",
       densidade: "",
+      cor_420nm: "", 
       cor_520nm: "",
+      cor_620nm: "", 
       sensorial: "",
       observacao: "",
     },
@@ -75,10 +77,13 @@ export function LabBottlingScreen() {
         ratio: "",
         ph: "",
         densidade: "",
+        cor_420nm: "", 
         cor_520nm: "",
+        cor_620nm: "", 
         sensorial: "",
         observacao: "",
       });
+
     } catch (error: any) {
       console.error("Erro ao salvar LabFrutas:", error);
       Alert.alert(
@@ -151,14 +156,14 @@ export function LabBottlingScreen() {
             </Text>
           </View>
 
-          {/* Seção 1: Rastreabilidade */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="qr-code-scanner" size={20} color="#6200ee" />
               <Text style={styles.sectionTitleSmall}>Rastreabilidade</Text>
             </View>
 
-            {/* Linha com Data e Lote */}
+            
             <View style={styles.row}>
               <View style={styles.dateContainer}>
                 <Text style={styles.label}>Data</Text>
@@ -215,7 +220,7 @@ export function LabBottlingScreen() {
             )}
           </View>
 
-          {/* Seção 2: Físico-Química */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="science" size={20} color="#6200ee" />
@@ -261,15 +266,27 @@ export function LabBottlingScreen() {
               </View>
             </View>
 
+           {renderInput(
+              "cor_420nm",
+              "Cor (420 nm)", 
+              "numeric",
+              "Digite valor em nm",
+            )}
             {renderInput(
               "cor_520nm",
               "Cor (520 nm)",
               "numeric",
               "Digite valor em nm",
             )}
+            {renderInput(
+              "cor_620nm",
+              "Cor (620 nm)", 
+              "numeric",
+              "Digite valor em nm",
+            )}
           </View>
 
-          {/* Seção 3: Qualitativo */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="rate-review" size={20} color="#6200ee" />
@@ -292,7 +309,7 @@ export function LabBottlingScreen() {
             )}
           </View>
 
-          {/* Botão Salvar */}
+          
           <TouchableOpacity
             style={styles.saveButton}
             onPress={handleSubmit(onSubmit)}

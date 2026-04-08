@@ -162,7 +162,7 @@ export function BottleControlScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CABEÇALHO */}
+          
           <View style={styles.header}>
             <View style={styles.headerIconContainer}>
               <MaterialCommunityIcons
@@ -187,7 +187,7 @@ export function BottleControlScreen() {
             </View>
           </View>
 
-          {/* 1. IDENTIFICAÇÃO E DADOS GERAIS */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Identificação do Lote</Text>
             <View style={styles.sectionBody}>
@@ -242,7 +242,7 @@ export function BottleControlScreen() {
             </View>
           </View>
 
-          {/* 2. RASTREABILIDADE DINÂMICA (COM SCANNER) */}
+          
           <View style={styles.section}>
             <View
               style={[
@@ -346,7 +346,7 @@ export function BottleControlScreen() {
             </View>
           </View>
 
-          {/* 3. NÃO CONFORMIDADES (PERDAS) */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>3. Não Conformidades</Text>
             <View style={styles.sectionBody}>
@@ -387,7 +387,7 @@ export function BottleControlScreen() {
             </View>
           </View>
 
-          {/* 4. ASSINATURAS */}
+          
           <View style={styles.card}>
             <Text style={styles.sectionTitleSmall}>
               4. Validação e Responsáveis

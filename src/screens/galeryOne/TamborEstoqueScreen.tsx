@@ -1,49 +1,83 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import {
   View,
-  Text,
+  ScrollView,
+  StyleSheet,
+  Platform,
+  Alert,
   TextInput,
+  Text,
   TouchableOpacity,
+  SafeAreaView,
   FlatList,
   Modal,
-  StyleSheet,
-  Alert,
   ActivityIndicator,
-  SafeAreaView,
 } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+
 import { AuthContext } from "../../contexts/AuthContext";
 import { api } from "../../services/api";
 
-interface Tambor {
-  id: number;
-  numeroTambor: string;
-  dataEnvaseBag: string;
-  variedadeUva: string;
-  fornecedor?: string;
-  acidez: number | null;
-  relacao: number | null;
-  motivoBaixa?: string;
-  observacaoBaixa?: string;
-  dataBaixa?: string;
-}
+const FilterSelect = ({ label, icon, value, options, onSelect, placeholder }: any) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={styles.labelModern}>{icon} {label}</Text>
+      <TouchableOpacity
+        style={styles.selectButtonModern}
+        onPress={() => setIsOpen(true)}
+        activeOpacity={0.7}
+      >
+        <Text style={[styles.selectTextModern, !value && { color: "#94A3B8" }]}>
+          {value || placeholder}
+        </Text>
+        <MaterialCommunityIcons name="chevron-down" size={20} color="#38BDF8" />
+      </TouchableOpacity>
+
+      <Modal visible={isOpen} transparent animationType="fade">
+        <TouchableOpacity style={styles.modalOverlayModern} activeOpacity={1} onPress={() => setIsOpen(false)}>
+          <View style={styles.modalContentModern}>
+            <View style={styles.modalHeaderModern}>
+              <Text style={styles.modalTitleModern}>Selecione {label}</Text>
+            </View>
+            <ScrollView>
+              <TouchableOpacity style={styles.modalOptionModern} onPress={() => { onSelect(""); setIsOpen(false); }}>
+                <MaterialCommunityIcons name="close-circle" size={20} color="#EF4444" />
+                <Text style={styles.modalOptionTextModern}>Limpar Seleção</Text>
+              </TouchableOpacity>
+
+              {options.map((opt: string) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.modalOptionModern, value === opt && styles.modalOptionActiveModern]}
+                  onPress={() => { onSelect(opt); setIsOpen(false); }}
+                >
+                  <Text style={[styles.modalOptionTextModern, value === opt && styles.modalOptionTextActiveModern]}>
+                    {opt}
+                  </Text>
+                  {value === opt && <MaterialCommunityIcons name="check" size={18} color="#10B981" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+};
 
 export function TamborEstoqueScreen() {
-  const navigation = useNavigation<any>();
   const { usuarioId } = useContext(AuthContext);
 
-  const [abaAtual, setAbaAtual] = useState<"DISPONIVEIS" | "BAIXADOS">(
-    "DISPONIVEIS",
-  );
-  const [tambores, setTambores] = useState<Tambor[]>([]);
+  const [abaAtual, setAbaAtual] = useState<"DISPONIVEIS" | "BAIXADOS">("DISPONIVEIS");
+  const [tambores, setTambores] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [tamborSelecionado, setTamborSelecionado] = useState<Tambor | null>(
-    null,
-  );
+  const [tamborSelecionado, setTamborSelecionado] = useState<any | null>(null);
   const [motivoBaixa, setMotivoBaixa] = useState("");
   const [nomeEmpresa, setNomeEmpresa] = useState("");
   const [observacaoBaixa, setObservacaoBaixa] = useState("");
@@ -53,19 +87,23 @@ export function TamborEstoqueScreen() {
   const [filtroVariedade, setFiltroVariedade] = useState("");
   const [filtroFornecedor, setFiltroFornecedor] = useState("");
   const [filtroData, setFiltroData] = useState("");
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const [cor420Min, setCor420Min] = useState("");
+  const [cor420Max, setCor420Max] = useState("");
+  const [cor520Min, setCor520Min] = useState("");
+  const [cor520Max, setCor520Max] = useState("");
+  const [cor620Min, setCor620Min] = useState("");
+  const [cor620Max, setCor620Max] = useState("");
 
   const opcoesMotivo = ["Venda", "Contaminado", "Fermentado", "Outros"];
 
   const loadTambores = async () => {
     setLoading(true);
     try {
-      if (abaAtual === "DISPONIVEIS") {
-        const response = await api.get("/tambores/disponiveis");
-        setTambores(response.data);
-      } else {
-        const response = await api.get("/tambores/baixados");
-        setTambores(response.data);
-      }
+      const endpoint = abaAtual === "DISPONIVEIS" ? "/tambores/disponiveis" : "/tambores/baixados";
+      const response = await api.get(endpoint);
+      setTambores(response.data);
     } catch (error: any) {
       Alert.alert("Erro", "Não foi possível carregar os tambores.");
     } finally {
@@ -78,36 +116,61 @@ export function TamborEstoqueScreen() {
     setSearch("");
   }, [abaAtual]);
 
+  const variedadesUnicas = useMemo(() => {
+    const vars = tambores.map(t => t.variedadeUva).filter(Boolean);
+    return Array.from(new Set(vars)).sort();
+  }, [tambores]);
+
+  const fornecedoresUnicos = useMemo(() => {
+    const forns = tambores.map(t => t.fornecedor).filter(Boolean);
+    return Array.from(new Set(forns)).sort();
+  }, [tambores]);
+
+  const parseNumber = (val: string) => {
+    if (!val || val.trim() === "") return null;
+    return Number(val.replace(",", "."));
+  };
+
   const tamboresFiltrados = tambores.filter((t) => {
     const termoPesquisa = search.toLowerCase();
     const matchBusca = t.numeroTambor.toLowerCase().includes(termoPesquisa);
+    const matchVariedade = filtroVariedade === "" || t.variedadeUva === filtroVariedade;
+    const matchFornecedor = filtroFornecedor === "" || t.fornecedor === filtroFornecedor;
+    const matchData = filtroData ? new Date(t.dataEnvaseBag).toLocaleDateString("pt-BR") === filtroData : true;
 
-    const matchVariedade = filtroVariedade
-      ? t.variedadeUva.toLowerCase().includes(filtroVariedade.toLowerCase())
-      : true;
+    const v420 = t.cor420nm !== null && t.cor420nm !== undefined ? Number(t.cor420nm) : null;
+    const v520 = t.cor520nm !== null && t.cor520nm !== undefined ? Number(t.cor520nm) : null;
+    const v620 = t.cor620nm !== null && t.cor620nm !== undefined ? Number(t.cor620nm) : null;
 
-    const matchFornecedor =
-      filtroFornecedor && t.fornecedor
-        ? t.fornecedor.toLowerCase().includes(filtroFornecedor.toLowerCase())
-        : true;
+    const min420 = parseNumber(cor420Min);
+    const max420 = parseNumber(cor420Max);
+    const match420 = (min420 === null || (v420 !== null && v420 >= min420)) && (max420 === null || (v420 !== null && v420 <= max420));
 
-    const matchData = filtroData
-      ? new Date(t.dataEnvaseBag)
-          .toLocaleDateString("pt-BR")
-          .includes(filtroData)
-      : true;
+    const min520 = parseNumber(cor520Min);
+    const max520 = parseNumber(cor520Max);
+    const match520 = (min520 === null || (v520 !== null && v520 >= min520)) && (max520 === null || (v520 !== null && v520 <= max520));
 
-    return matchBusca && matchVariedade && matchFornecedor && matchData;
+    const min620 = parseNumber(cor620Min);
+    const max620 = parseNumber(cor620Max);
+    const match620 = (min620 === null || (v620 !== null && v620 >= min620)) && (max620 === null || (v620 !== null && v620 <= max620));
+
+    return matchBusca && matchVariedade && matchFornecedor && matchData && match420 && match520 && match620;
   });
 
   const limparFiltros = () => {
     setFiltroVariedade("");
     setFiltroFornecedor("");
     setFiltroData("");
+    setCor420Min("");
+    setCor420Max("");
+    setCor520Min("");
+    setCor520Max("");
+    setCor620Min("");
+    setCor620Max("");
     setModalFiltroVisible(false);
   };
 
-  const abrirModalBaixa = (tambor: Tambor) => {
+  const abrirModalBaixa = (tambor: any) => {
     setTamborSelecionado(tambor);
     setMotivoBaixa("");
     setNomeEmpresa("");
@@ -120,12 +183,8 @@ export function TamborEstoqueScreen() {
       Alert.alert("Atenção", "Selecione um motivo para a baixa.");
       return;
     }
-
     if (motivoBaixa === "Venda" && !nomeEmpresa.trim()) {
-      Alert.alert(
-        "Atenção",
-        "Por favor, informe o nome da empresa compradora.",
-      );
+      Alert.alert("Atenção", "Por favor, informe o nome da empresa compradora.");
       return;
     }
 
@@ -152,292 +211,228 @@ export function TamborEstoqueScreen() {
     }
   };
 
-  const renderTamborDisponivel = ({ item }: { item: Tambor }) => (
-    <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <View style={styles.badge}>
-          <MaterialCommunityIcons name="barrel" size={20} color="#0284C7" />
-          <Text style={styles.badgeText}>Bag/Tambor {item.numeroTambor}</Text>
+  const renderTamborDisponivel = ({ item }: { item: any }) => (
+    <View style={styles.cardModern}>
+      <View style={styles.cardHeaderModern}>
+        <View style={styles.badgeModern}>
+          <MaterialCommunityIcons name="barrel" size={18} color="#06B6D4" />
+          <Text style={styles.badgeTextModern}>#{item.numeroTambor}</Text>
+          
+          <Text style={styles.badgeSubTextModern}>({new Date(item.dataEnvaseBag).toLocaleDateString("pt-BR").slice(0, 5)})</Text>
         </View>
-        <Text style={styles.dataText}>
-          {new Date(item.dataEnvaseBag).toLocaleDateString("pt-BR")}
-        </Text>
+        <View style={styles.dateBadgeModern}>
+          <MaterialCommunityIcons name="calendar" size={14} color="#64748B" />
+          <Text style={styles.dateTextModern}>
+            {new Date(item.dataEnvaseBag).toLocaleDateString("pt-BR")}
+          </Text>
+        </View>
       </View>
 
-      <View style={styles.infoRow}>
-        <Text style={styles.infoText}>🍇 {item.variedadeUva}</Text>
-        <Text style={styles.infoText}>🧪 Acidez: {item.acidez || "--"}</Text>
-        <Text style={styles.infoText}>📊 Ratio: {item.relacao || "--"}</Text>
+      <View style={styles.infoGridModern}>
+        <View style={styles.infoItemModern}>
+          <MaterialCommunityIcons name="fruit-grapes" size={18} color="#8B5CF6" />
+          <Text style={styles.infoLabelModern}>Variedade</Text>
+          <Text style={styles.infoValueModern}>{item.variedadeUva}</Text>
+        </View>
+        <View style={styles.infoItemModern}>
+          <MaterialCommunityIcons name="flask" size={18} color="#EC4899" />
+          <Text style={styles.infoLabelModern}>Acidez</Text>
+          <Text style={styles.infoValueModern}>{item.acidez || "--"}</Text>
+        </View>
+        <View style={styles.infoItemModern}>
+          <MaterialCommunityIcons name="chart-line" size={18} color="#F59E0B" />
+          <Text style={styles.infoLabelModern}>Ratio</Text>
+          <Text style={styles.infoValueModern}>{item.relacao || "--"}</Text>
+        </View>
       </View>
 
-      <TouchableOpacity
-        style={styles.btnBaixa}
-        onPress={() => abrirModalBaixa(item)}
-      >
-        <MaterialCommunityIcons
-          name="arrow-down-bold-box"
-          size={20}
-          color="#fff"
-        />
-        <Text style={styles.btnBaixaText}>Dar Baixa Manual</Text>
+      <View style={styles.colorSpectrumModern}>
+        <View style={styles.colorBarModern}>
+          <View style={[styles.colorDotModern, { backgroundColor: '#EF4444' }]} />
+          <Text style={styles.colorLabelModern}>420nm</Text>
+          <Text style={styles.colorValueModern}>{item.cor420nm || "--"}</Text>
+        </View>
+        <View style={styles.colorBarModern}>
+          <View style={[styles.colorDotModern, { backgroundColor: '#10B981' }]} />
+          <Text style={styles.colorLabelModern}>520nm</Text>
+          <Text style={styles.colorValueModern}>{item.cor520nm || "--"}</Text>
+        </View>
+        <View style={styles.colorBarModern}>
+          <View style={[styles.colorDotModern, { backgroundColor: '#3B82F6' }]} />
+          <Text style={styles.colorLabelModern}>620nm</Text>
+          <Text style={styles.colorValueModern}>{item.cor620nm || "--"}</Text>
+        </View>
+      </View>
+
+      <TouchableOpacity style={styles.btnBaixaModern} onPress={() => abrirModalBaixa(item)}>
+        <MaterialCommunityIcons name="arrow-down-bold-box" size={20} color="#fff" />
+        <Text style={styles.btnBaixaTextModern}>Dar Baixa</Text>
       </TouchableOpacity>
     </View>
   );
 
-  const renderTamborBaixado = ({ item }: { item: Tambor }) => (
-    <View
-      style={[
-        styles.card,
-        { borderColor: "#FCA5A5", backgroundColor: "#FEF2F2" },
-      ]}
-    >
-      <View style={styles.cardHeader}>
-        <View style={[styles.badge, { backgroundColor: "#FEE2E2" }]}>
-          <MaterialCommunityIcons name="barrel" size={20} color="#EF4444" />
-          <Text style={[styles.badgeText, { color: "#EF4444" }]}>
-            Bag/Tambor {item.numeroTambor}
+  const renderTamborBaixado = ({ item }: { item: any }) => (
+    <View style={[styles.cardModern, styles.cardBaixadoModern]}>
+      <View style={styles.cardHeaderModern}>
+        <View style={[styles.badgeModern, styles.badgeBaixadoModern]}>
+          <MaterialCommunityIcons name="barrel" size={18} color="#EF4444" />
+          <Text style={[styles.badgeTextModern, { color: "#EF4444" }]}>#{item.numeroTambor}</Text>
+          
+          <Text style={[styles.badgeSubTextModern, { color: "#FCA5A5" }]}>({new Date(item.dataEnvaseBag).toLocaleDateString("pt-BR").slice(0, 5)})</Text>
+        </View>
+        <View style={[styles.dateBadgeModern, styles.dateBadgeBaixadoModern]}>
+          <MaterialCommunityIcons name="history" size={14} color="#EF4444" />
+          <Text style={[styles.dateTextModern, { color: "#EF4444" }]}>
+            {item.dataBaixa ? new Date(item.dataBaixa).toLocaleDateString("pt-BR") : "--"}
           </Text>
         </View>
-        <Text style={[styles.dataText, { color: "#EF4444" }]}>
-          Baixado em{" "}
-          {item.dataBaixa
-            ? new Date(item.dataBaixa).toLocaleDateString("pt-BR")
-            : "--"}
-        </Text>
       </View>
 
-      <View
-        style={[
-          styles.infoRow,
-          { backgroundColor: "#fff", borderColor: "#FECACA", borderWidth: 1 },
-        ]}
-      >
-        <MaterialCommunityIcons
-          name="alert-circle-outline"
-          size={16}
-          color="#EF4444"
-          style={{ marginRight: 6 }}
-        />
-        <Text style={[styles.infoText, { color: "#991B1B", flex: 1 }]}>
+      <View style={styles.motivoCardModern}>
+        <MaterialCommunityIcons name="alert-decagram" size={22} color="#EF4444" />
+        <Text style={styles.motivoCardTextModern}>
           <Text style={{ fontWeight: "bold" }}>Motivo: </Text>
           {item.motivoBaixa}
         </Text>
       </View>
 
-      {item.observacaoBaixa ? (
-        <Text style={styles.observacaoBaixado}>
-          <Text style={{ fontWeight: "bold", color: "#7F1D1D" }}>Obs: </Text>
-          {item.observacaoBaixa}
-        </Text>
-      ) : null}
+      {item.observacaoBaixa && (
+        <View style={styles.obsCardModern}>
+          <MaterialCommunityIcons name="message-text" size={16} color="#991B1B" />
+          <Text style={styles.obsCardTextModern}>{item.observacaoBaixa}</Text>
+        </View>
+      )}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* CABEÇALHO */}
-      <View style={styles.header}>
-        <View
-          style={[styles.headerIconContainer, { backgroundColor: "#E0F2FE" }]}
-        >
-          <MaterialCommunityIcons name="snowflake" size={32} color="#0284C7" />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Câmara Fria</Text>
-          <Text style={styles.headerSubtitle}>Controle de Tambores e Bags</Text>
-        </View>
-      </View>
-
-      {/* SELETOR DE ABAS */}
-      <View style={styles.tabContainer}>
+      
+      
+      <View style={styles.tabContainerModern}>
         <TouchableOpacity
-          style={[
-            styles.tabBtn,
-            abaAtual === "DISPONIVEIS" && styles.tabBtnAtivo,
-          ]}
+          style={[styles.tabBtnModern, abaAtual === "DISPONIVEIS" && styles.tabBtnAtivoModern]}
           onPress={() => setAbaAtual("DISPONIVEIS")}
         >
-          <MaterialCommunityIcons
-            name="check-circle-outline"
-            size={20}
-            color={abaAtual === "DISPONIVEIS" ? "#0284C7" : "#64748B"}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              abaAtual === "DISPONIVEIS" && styles.tabTextAtivo,
-            ]}
-          >
-            Disponíveis
-          </Text>
+          <MaterialCommunityIcons name="check-circle" size={22} color={abaAtual === "DISPONIVEIS" ? "#10B981" : "#64748B"} />
+          <Text style={[styles.tabTextModern, abaAtual === "DISPONIVEIS" && styles.tabTextAtivoModern]}>Disponíveis</Text>
+          <View style={[styles.tabIndicator, abaAtual === "DISPONIVEIS" && styles.tabIndicatorActive]} />
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.tabBtn, abaAtual === "BAIXADOS" && styles.tabBtnAtivo]}
+          style={[styles.tabBtnModern, abaAtual === "BAIXADOS" && styles.tabBtnAtivoModern]}
           onPress={() => setAbaAtual("BAIXADOS")}
         >
-          <MaterialCommunityIcons
-            name="history"
-            size={20}
-            color={abaAtual === "BAIXADOS" ? "#0284C7" : "#64748B"}
-          />
-          <Text
-            style={[
-              styles.tabText,
-              abaAtual === "BAIXADOS" && styles.tabTextAtivo,
-            ]}
-          >
-            Histórico (Baixas)
-          </Text>
+          <MaterialCommunityIcons name="history" size={22} color={abaAtual === "BAIXADOS" ? "#F59E0B" : "#64748B"} />
+          <Text style={[styles.tabTextModern, abaAtual === "BAIXADOS" && styles.tabTextAtivoModern]}>Histórico</Text>
+          <View style={[styles.tabIndicator, abaAtual === "BAIXADOS" && styles.tabIndicatorActive]} />
         </TouchableOpacity>
       </View>
 
-      {/* BARRA DE PESQUISA E BOTÃO DE FILTROS */}
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          marginHorizontal: 16,
-          marginVertical: 12,
-        }}
-      >
-        <View style={[styles.searchContainer, { flex: 1, margin: 0 }]}>
-          <MaterialCommunityIcons name="magnify" size={24} color="#94A3B8" />
+      
+      <View style={styles.searchWrapperModern}>
+        <View style={styles.searchContainerModern}>
+          <MaterialCommunityIcons name="magnify" size={22} color="#38BDF8" />
           <TextInput
-            style={styles.searchInput}
-            placeholder="Pesquisar N° Bag/Tambor..."
+            style={styles.searchInputModern}
+            placeholder="Buscar tambor..."
+            placeholderTextColor="#94A3B8"
             value={search}
             onChangeText={setSearch}
-            placeholderTextColor="#94A3B8"
           />
+          {search !== "" && (
+            <TouchableOpacity onPress={() => setSearch("")}>
+              <MaterialCommunityIcons name="close-circle" size={18} color="#64748B" />
+            </TouchableOpacity>
+          )}
         </View>
 
-        <TouchableOpacity
-          style={{
-            backgroundColor: "#0284C7",
-            padding: 12,
-            borderRadius: 8,
-            marginLeft: 10,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-          onPress={() => setModalFiltroVisible(true)}
-        >
-          <MaterialCommunityIcons
-            name="filter-variant"
-            size={24}
-            color="#fff"
-          />
+        <TouchableOpacity style={styles.filterBtnModern} onPress={() => setModalFiltroVisible(true)}>
+          <MaterialCommunityIcons name="filter-variant" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
 
-      {/* LISTA DE TAMBORES */}
+      
       {loading ? (
-        <ActivityIndicator
-          size="large"
-          color="#0284C7"
-          style={{ marginTop: 50 }}
-        />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#38BDF8" />
+          <Text style={styles.loadingText}>Carregando tambores...</Text>
+        </View>
       ) : (
         <FlatList
           data={tamboresFiltrados}
+          
           keyExtractor={(item) => String(item.id)}
-          renderItem={
-            abaAtual === "DISPONIVEIS"
-              ? renderTamborDisponivel
-              : renderTamborBaixado
-          }
-          contentContainerStyle={styles.listContent}
+          renderItem={abaAtual === "DISPONIVEIS" ? renderTamborDisponivel : renderTamborBaixado}
+          contentContainerStyle={styles.listContentModern}
           ListEmptyComponent={
-            <Text style={styles.emptyText}>
-              Nenhum tambor{" "}
-              {abaAtual === "DISPONIVEIS" ? "disponível" : "baixado"}{" "}
-              encontrado.
-            </Text>
+            <View style={styles.emptyContainer}>
+              <MaterialCommunityIcons name="barrel" size={64} color="#64748B" />
+              <Text style={styles.emptyText}>Nenhum tambor encontrado</Text>
+            </View>
           }
         />
       )}
 
-      {/* MODAL DE BAIXA (POP-UP) */}
-      <Modal visible={modalVisible} transparent={true} animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              Baixa Manual - Tambor {tamborSelecionado?.numeroTambor}
-            </Text>
+      
+      <Modal visible={modalVisible} transparent animationType="fade">
+        <View style={styles.modalOverlayModern}>
+          <View style={styles.modalContentModern}>
+            <View style={styles.modalHeaderNeon}>
+              <MaterialCommunityIcons name="arrow-down-bold-box" size={28} color="#EF4444" />
+              <Text style={styles.modalTitleModern}>Baixa Manual</Text>
+              <Text style={styles.modalSubtitleModern}>Tambor {tamborSelecionado?.numeroTambor}</Text>
+            </View>
 
-            <Text style={styles.label}>Motivo da Baixa*</Text>
-            <View style={styles.motivoContainer}>
+            <Text style={styles.labelModern}>Motivo da Baixa</Text>
+            <View style={styles.motivoContainerModern}>
               {opcoesMotivo.map((motivo) => (
                 <TouchableOpacity
                   key={motivo}
-                  style={[
-                    styles.motivoBtn,
-                    motivoBaixa === motivo && styles.motivoBtnAtivo,
-                  ]}
+                  style={[styles.motivoBtnModern, motivoBaixa === motivo && styles.motivoBtnAtivoModern]}
                   onPress={() => setMotivoBaixa(motivo)}
                 >
-                  <Text
-                    style={[
-                      styles.motivoText,
-                      motivoBaixa === motivo && styles.motivoTextAtivo,
-                    ]}
-                  >
+                  <Text style={[styles.motivoTextModern, motivoBaixa === motivo && styles.motivoTextAtivoModern]}>
                     {motivo}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            {/* SELECIONOU VENDA: Pede o nome da empresa */}
             {motivoBaixa === "Venda" && (
               <>
-                <Text style={styles.label}>Nome da Empresa Compra*</Text>
+                <Text style={styles.labelModern}>Empresa Compradora</Text>
                 <TextInput
-                  style={[
-                    styles.textArea,
-                    { minHeight: 48, paddingVertical: 12 },
-                  ]}
-                  placeholder="Ex: Vinícola do Vale"
+                  style={styles.inputModern}
+                  placeholder="Digite o nome da empresa"
+                  placeholderTextColor="#94A3B8"
                   value={nomeEmpresa}
                   onChangeText={setNomeEmpresa}
                 />
               </>
             )}
 
-            <Text style={styles.label}>Observação (Opcional)</Text>
+            <Text style={styles.labelModern}>Observações</Text>
             <TextInput
-              style={styles.textArea}
-              placeholder="Detalhes adicionais..."
+              style={[styles.inputModern, styles.textAreaModern]}
+              placeholder="Informações adicionais..."
+              placeholderTextColor="#94A3B8"
               value={observacaoBaixa}
               onChangeText={setObservacaoBaixa}
               multiline
               numberOfLines={3}
-              textAlignVertical="top"
             />
 
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#E2E8F0" }]}
-                onPress={() => setModalVisible(false)}
-                disabled={isSubmitting}
-              >
-                <Text style={{ color: "#475569", fontWeight: "bold" }}>
-                  Cancelar
-                </Text>
+            <View style={styles.modalActionsModern}>
+              <TouchableOpacity style={styles.modalBtnCancelModern} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalBtnTextCancelModern}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[styles.modalBtn, { backgroundColor: "#EF4444" }]}
-                onPress={handleConfirmarBaixa}
-                disabled={isSubmitting}
-              >
+              <TouchableOpacity style={styles.modalBtnConfirmModern} onPress={handleConfirmarBaixa} disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <ActivityIndicator color="#fff" />
+                  <ActivityIndicator color="#fff" size="small" />
                 ) : (
-                  <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                    Confirmar Baixa
-                  </Text>
+                  <Text style={styles.modalBtnTextConfirmModern}>Confirmar</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -445,86 +440,95 @@ export function TamborEstoqueScreen() {
         </View>
       </Modal>
 
-      {/* MODAL DE FILTROS AVANÇADOS */}
-      <Modal
-        visible={modalFiltroVisible}
-        transparent={true}
-        animationType="slide"
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View
-              style={{
-                flexDirection: "row",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 20,
-              }}
-            >
-              <Text style={styles.modalTitle}>Filtros Avançados</Text>
+      
+      <Modal visible={modalFiltroVisible} transparent animationType="slide">
+        <View style={styles.modalOverlayModern}>
+          <View style={[styles.modalContentModern, { maxHeight: '85%' }]}>
+            <View style={styles.modalHeaderFilterModern}>
+              <Text style={styles.modalTitleModern}>Filtros Avançados</Text>
               <TouchableOpacity onPress={() => setModalFiltroVisible(false)}>
-                <MaterialCommunityIcons
-                  name="close"
-                  size={24}
-                  color="#64748B"
-                />
+                <MaterialCommunityIcons name="close" size={24} color="#94A3B8" />
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.label}>🍇 Variedade</Text>
-            <TextInput
-              style={[
-                styles.textArea,
-                { minHeight: 45, paddingVertical: 10, marginBottom: 12 },
-              ]}
-              placeholder="Ex: Cotton, BRS"
-              value={filtroVariedade}
-              onChangeText={setFiltroVariedade}
-            />
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <FilterSelect 
+                label="Variedade da Uva" 
+                icon="🍇" 
+                value={filtroVariedade} 
+                options={variedadesUnicas} 
+                onSelect={setFiltroVariedade} 
+                placeholder="Selecione..."
+              />
 
-            <Text style={styles.label}>🚜 Fornecedor</Text>
-            <TextInput
-              style={[
-                styles.textArea,
-                { minHeight: 45, paddingVertical: 10, marginBottom: 12 },
-              ]}
-              placeholder="Nome do produtor..."
-              value={filtroFornecedor}
-              onChangeText={setFiltroFornecedor}
-            />
+              <FilterSelect 
+                label="Fornecedor" 
+                icon="🚜" 
+                value={filtroFornecedor} 
+                options={fornecedoresUnicos} 
+                onSelect={setFiltroFornecedor} 
+                placeholder="Selecione..."
+              />
 
-            <Text style={styles.label}>📅 Data da Extração</Text>
-            <TextInput
-              style={[styles.textArea, { minHeight: 45, paddingVertical: 10 }]}
-              placeholder="DD/MM/YYYY"
-              value={filtroData}
-              onChangeText={setFiltroData}
-              keyboardType="numeric"
-            />
+              <View style={{ marginBottom: 16 }}>
+                <Text style={styles.labelModern}>📅 Data de Extração</Text>
+                <TouchableOpacity style={styles.selectButtonModern} onPress={() => setShowDatePicker(true)}>
+                  <Text style={[styles.selectTextModern, !filtroData && { color: "#94A3B8" }]}>
+                    {filtroData || "Selecionar data..."}
+                  </Text>
+                  <MaterialCommunityIcons name="calendar" size={22} color="#38BDF8" />
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={filtroData ? new Date(filtroData.split('/').reverse().join('-')) : new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (event.type === "set" && selectedDate) {
+                        setFiltroData(selectedDate.toLocaleDateString("pt-BR"));
+                      }
+                    }}
+                  />
+                )}
+              </View>
 
-            <View style={[styles.modalActions, { marginTop: 30 }]}>
-              <TouchableOpacity
-                style={[
-                  styles.modalBtn,
-                  { backgroundColor: "#FEE2E2", flex: 1 },
-                ]}
-                onPress={limparFiltros}
-              >
-                <Text style={{ color: "#EF4444", fontWeight: "bold" }}>
-                  Limpar Filtros
-                </Text>
+              <View style={styles.colorFilterModern}>
+                <View style={styles.colorFilterHeaderModern}>
+                  <MaterialCommunityIcons name="palette" size={22} color="#38BDF8" />
+                  <Text style={styles.colorFilterTitleModern}>Filtro de Cores</Text>
+                </View>
+
+                <Text style={styles.colorLabelModern}>🔴 420nm</Text>
+                <View style={styles.rangeContainerModern}>
+                  <TextInput style={styles.rangeInputModern} placeholder="Mín" placeholderTextColor="#94A3B8" value={cor420Min} onChangeText={setCor420Min} keyboardType="numeric" />
+                  <Text style={styles.rangeSeparatorModern}>→</Text>
+                  <TextInput style={styles.rangeInputModern} placeholder="Máx" placeholderTextColor="#94A3B8" value={cor420Max} onChangeText={setCor420Max} keyboardType="numeric" />
+                </View>
+
+                <Text style={styles.colorLabelModern}>🟢 520nm</Text>
+                <View style={styles.rangeContainerModern}>
+                  <TextInput style={styles.rangeInputModern} placeholder="Mín" placeholderTextColor="#94A3B8" value={cor520Min} onChangeText={setCor520Min} keyboardType="numeric" />
+                  <Text style={styles.rangeSeparatorModern}>→</Text>
+                  <TextInput style={styles.rangeInputModern} placeholder="Máx" placeholderTextColor="#94A3B8" value={cor520Max} onChangeText={setCor520Max} keyboardType="numeric" />
+                </View>
+
+                <Text style={styles.colorLabelModern}>🔵 620nm</Text>
+                <View style={styles.rangeContainerModern}>
+                  <TextInput style={styles.rangeInputModern} placeholder="Mín" placeholderTextColor="#94A3B8" value={cor620Min} onChangeText={setCor620Min} keyboardType="numeric" />
+                  <Text style={styles.rangeSeparatorModern}>→</Text>
+                  <TextInput style={styles.rangeInputModern} placeholder="Máx" placeholderTextColor="#94A3B8" value={cor620Max} onChangeText={setCor620Max} keyboardType="numeric" />
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActionsFilterModern}>
+              <TouchableOpacity style={styles.btnClearModern} onPress={limparFiltros}>
+                <Text style={styles.btnClearTextModern}>Limpar Tudo</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={[
-                  styles.modalBtn,
-                  { backgroundColor: "#0284C7", flex: 1 },
-                ]}
-                onPress={() => setModalFiltroVisible(false)}
-              >
-                <Text style={{ color: "#fff", fontWeight: "bold" }}>
-                  Aplicar
-                </Text>
+              <TouchableOpacity style={styles.btnApplyModern} onPress={() => setModalFiltroVisible(false)}>
+                <Text style={styles.btnApplyTextModern}>Aplicar Filtros</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -535,172 +539,494 @@ export function TamborEstoqueScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F8FAFC" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderColor: "#E2E8F0",
+  container: {
+    flex: 1,
+    backgroundColor: "#0F172A",
   },
-  headerIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-  headerTitle: { fontSize: 20, fontWeight: "bold", color: "#1E293B" },
-  headerSubtitle: { fontSize: 14, color: "#64748B" },
-
-  tabContainer: {
+  
+  tabContainerModern: {
     flexDirection: "row",
-    padding: 16,
-    paddingBottom: 0,
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    marginTop:20,
     gap: 12,
   },
-  tabBtn: {
+  tabBtnModern: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: "#1E293B",
+    position: "relative",
+  },
+  tabBtnAtivoModern: {
+    backgroundColor: "#334155",
+  },
+  tabTextModern: {
+    color: "#94A3B8",
+    fontWeight: "600",
+    fontSize: 14,
+    marginTop: 4,
+  },
+  tabTextAtivoModern: {
+    color: "#38BDF8",
+  },
+  tabIndicator: {
+    position: "absolute",
+    bottom: 0,
+    left: "25%",
+    width: "50%",
+    height: 2,
+    backgroundColor: "transparent",
+    borderRadius: 2,
+  },
+  tabIndicatorActive: {
+    backgroundColor: "#38BDF8",
+  },
+  searchWrapperModern: {
+    flexDirection: "row",
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 12,
+  },
+  searchContainerModern: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
+    backgroundColor: "#1E293B",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: "#334155",
+  },
+  searchInputModern: {
+    flex: 1,
+    height: 48,
+    marginLeft: 12,
+    color: "#FFF",
+    fontSize: 15,
+  },
+  filterBtnModern: {
+    backgroundColor: "#38BDF8",
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 12,
-    borderRadius: 8,
-    backgroundColor: "#E2E8F0",
-    gap: 8,
   },
-  tabBtnAtivo: {
-    backgroundColor: "#E0F2FE",
-    borderWidth: 1,
-    borderColor: "#0284C7",
-  },
-  tabText: { color: "#64748B", fontWeight: "600", fontSize: 14 },
-  tabTextAtivo: { color: "#0284C7", fontWeight: "bold" },
-
-  searchContainer: {
-    flexDirection: "row",
+  loadingContainer: {
+    flex: 1,
     alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 16,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    justifyContent: "center",
+    gap: 12,
   },
-  searchInput: { flex: 1, height: 48, marginLeft: 8, color: "#1E293B" },
-
-  listContent: { paddingHorizontal: 16, paddingBottom: 20 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
+  loadingText: {
+    color: "#94A3B8",
+    fontSize: 14,
+  },
+  listContentModern: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  cardModern: {
+    backgroundColor: "#FFF",
+    borderRadius: 20,
     padding: 16,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  cardHeader: {
+  cardBaixadoModern: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  cardHeaderModern: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 16,
   },
-  badge: {
+  badgeModern: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#E0F2FE",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 10,
+    gap: 6,
   },
-  badgeText: { color: "#0284C7", fontWeight: "bold", marginLeft: 6 },
-  dataText: { color: "#64748B", fontSize: 13, fontWeight: "500" },
-
-  infoRow: {
+  badgeSubTextModern: {
+    fontSize: 11,
+    color: "#94A3B8",
+    marginLeft: 4,
+  },
+  badgeBaixadoModern: {
+    backgroundColor: "#FEE2E2",
+  },
+  badgeTextModern: {
+    color: "#06B6D4",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  dateBadgeModern: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     backgroundColor: "#F8FAFC",
-    padding: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 8,
-    marginBottom: 12,
+    gap: 4,
   },
-  infoText: { color: "#334155", fontWeight: "500", fontSize: 13 },
-  observacaoBaixado: {
-    fontSize: 13,
-    color: "#991B1B",
-    marginTop: 4,
-    fontStyle: "italic",
+  dateBadgeBaixadoModern: {
+    backgroundColor: "#FECACA",
   },
-
-  btnBaixa: {
+  dateTextModern: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "500",
+  },
+  infoGridModern: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginBottom: 16,
+    gap: 12,
+  },
+  infoItemModern: {
+    flex: 1,
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 10,
+    borderRadius: 12,
+    gap: 4,
+  },
+  infoLabelModern: {
+    fontSize: 10,
+    color: "#94A3B8",
+    textTransform: "uppercase",
+    fontWeight: "600",
+  },
+  infoValueModern: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  colorSpectrumModern: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "#F1F5F9",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  colorBarModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  colorDotModern: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  colorLabelModern: {
+    fontSize: 10,
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  colorValueModern: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: "#1E293B",
+  },
+  btnBaixaModern: {
     flexDirection: "row",
     backgroundColor: "#EF4444",
     padding: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
   },
-  btnBaixaText: { color: "#fff", fontWeight: "bold", marginLeft: 8 },
-
-  emptyText: { textAlign: "center", color: "#64748B", marginTop: 40 },
-
-  modalOverlay: {
+  btnBaixaTextModern: {
+    color: "#FFF",
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  motivoCardModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF",
+    padding: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  motivoCardTextModern: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    fontSize: 13,
+    color: "#991B1B",
+  },
+  obsCardModern: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#FFF",
+    padding: 12,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  obsCardTextModern: {
+    flex: 1,
+    fontSize: 12,
+    color: "#991B1B",
+    fontStyle: "italic",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 60,
+    gap: 16,
+  },
+  emptyText: {
+    color: "#64748B",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  modalOverlayModern: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.8)",
     justifyContent: "center",
     padding: 20,
   },
-  modalContent: { backgroundColor: "#fff", borderRadius: 16, padding: 20 },
-  modalTitle: {
-    fontSize: 18,
+  modalContentModern: {
+    backgroundColor: "#FFF",
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  modalHeaderNeon: {
+    alignItems: "center",
+    padding: 24,
+    paddingBottom: 16,
+    backgroundColor: "#F8FAFC",
+  },
+  modalHeaderFilterModern: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  modalTitleModern: {
+    fontSize: 20,
     fontWeight: "bold",
     color: "#1E293B",
-    marginBottom: 20,
   },
-  label: {
+  modalSubtitleModern: {
     fontSize: 14,
-    fontWeight: "bold",
+    color: "#64748B",
+    marginTop: 4,
+  },
+  labelModern: {
+    fontSize: 13,
+    fontWeight: "600",
     color: "#475569",
     marginBottom: 8,
-    marginTop: 12,
+    marginTop: 16,
+    marginHorizontal: 20,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-
-  motivoContainer: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  motivoBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-  },
-  motivoBtnAtivo: { borderColor: "#0284C7", backgroundColor: "#E0F2FE" },
-  motivoText: { color: "#64748B", fontWeight: "500" },
-  motivoTextAtivo: { color: "#0284C7", fontWeight: "bold" },
-
-  textArea: {
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 8,
-    padding: 12,
-    minHeight: 80,
-    color: "#1E293B",
-    backgroundColor: "#F8FAFC",
-  },
-
-  modalActions: {
+  selectButtonModern: {
     flexDirection: "row",
-    justifyContent: "flex-end",
-    marginTop: 24,
-    gap: 12,
-  },
-  modalBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
     alignItems: "center",
-    minWidth: 100,
+    justifyContent: "space-between",
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  selectTextModern: {
+    fontSize: 15,
+    color: "#1E293B",
+  },
+  inputModern: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    color: "#1E293B",
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  textAreaModern: {
+    minHeight: 80,
+    textAlignVertical: "top",
+  },
+  motivoContainerModern: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginHorizontal: 20,
+  },
+  motivoBtnModern: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  motivoBtnAtivoModern: {
+    backgroundColor: "#E0F2FE",
+    borderColor: "#38BDF8",
+  },
+  motivoTextModern: {
+    color: "#64748B",
+    fontWeight: "500",
+  },
+  motivoTextAtivoModern: {
+    color: "#0284C7",
+    fontWeight: "bold",
+  },
+  modalActionsModern: {
+    flexDirection: "row",
+    gap: 12,
+    margin: 20,
+  },
+  modalBtnCancelModern: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  modalBtnConfirmModern: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#EF4444",
+  },
+  modalBtnTextCancelModern: {
+    color: "#64748B",
+    fontWeight: "600",
+  },
+  modalBtnTextConfirmModern: {
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+  modalActionsFilterModern: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+  },
+  btnClearModern: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  btnClearTextModern: {
+    color: "#EF4444",
+    fontWeight: "600",
+  },
+  btnApplyModern: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
+    alignItems: "center",
+    backgroundColor: "#10B981",
+  },
+  btnApplyTextModern: {
+    color: "#FFF",
+    fontWeight: "bold",
+  },
+  colorFilterModern: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 16,
+    padding: 16,
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  colorFilterHeaderModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 16,
+  },
+  colorFilterTitleModern: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#0284C7",
+  },
+  rangeContainerModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
+  },
+  rangeInputModern: {
+    flex: 1,
+    backgroundColor: "#FFF",
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    color: "#1E293B",
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  rangeSeparatorModern: {
+    color: "#38BDF8",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modalHeaderModern: {
+    padding: 16,
+    backgroundColor: "#F8FAFC",
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  modalOptionModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  modalOptionActiveModern: {
+    backgroundColor: "#E0F2FE",
+  },
+  modalOptionTextModern: {
+    color: "#334155",
+    fontSize: 15,
+  },
+  modalOptionTextActiveModern: {
+    color: "#0284C7",
+    fontWeight: "bold",
   },
 });

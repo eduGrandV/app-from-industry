@@ -9,21 +9,21 @@ export const AREAS_PRAGAS = [
 ] as const;
 
 export const PESTS_LIST = [
-  "Rato",
-  "Aranha",
-  "Escorpião",
-  "Barata",
-  "Grilo",
-  "Pássaro",
-  "Cobra",
-  "Outros",
+  "Rato", "Aranha", "Escorpião", "Barata", "Grilo", "Pássaro", "Cobra", "Outros",
 ] as const;
 
 export const pestControlSchema = z.object({
   data: z.date(),
   responsavel: z.string().optional(),
   observacoes_gerais: z.string().optional(),
-  registros: z.record(z.string(), z.number()),
+  
+  registros: z.record(
+    z.string(), 
+    z.object({
+      quantidade: z.number(),
+      armadilha: z.string()
+    })
+  ),
 });
 
 export type PestControlFormData = z.infer<typeof pestControlSchema>;

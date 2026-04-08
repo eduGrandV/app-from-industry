@@ -4,9 +4,15 @@ export const labFruitSchema = z.object({
   data: z.coerce.date().refine((d) => !isNaN(d.getTime()), {
     message: "A data é obrigatória",
   }),
-  variedade: z.string().min(1, "informe a variedade da fruta"),
+  variedade: z.string().min(1, "Informe a variedade da fruta"),
   area: z.string().min(1, "Informe a Área"),
   linha: z.string().min(1, "Informe a linha"),
+
+  
+  maturacao: z.string().min(1, "Informe a maturação"),
+  cor: z.enum(["Amarelo", "Creme", "Verde"], {
+  message: "Selecione uma cor",
+}),
 
   naoh: z.coerce.number().min(0, "NaOH deve ser positivo"),
   brix: z.coerce.number().min(0, "Brix deve ser positivo"),

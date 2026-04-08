@@ -1,31 +1,30 @@
 import React, { useState, useEffect, useContext } from "react";
 import {
   View,
+  Text,
+  TextInput,
+  TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Platform,
   Alert,
-  TextInput,
-  Text,
-  TouchableOpacity,
   SafeAreaView,
   KeyboardAvoidingView,
+  StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import DateTimePicker, {
-  DateTimePickerEvent,
-} from "@react-native-community/datetimepicker";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
-import {
-  sweetsMonitoringSchema,
-  SweetsMonitoringFormData,
-} from "../../types/galleryFour/sweetsMonitoringSchema";
-import { DraftService } from "../../services/DraftService";
 import { AuthContext } from "../../contexts/AuthContext";
 import { api } from "../../services/api";
+import { DraftService } from "../../services/DraftService";
+import {
+  SweetsMonitoringFormData,
+  sweetsMonitoringSchema,
+} from "../../types/galleryFour/sweetsMonitoringSchema";
 
 const DRAFT_KEY = "@draft_sweets_monitoring";
 
@@ -38,13 +37,13 @@ const InputGroup = ({
   flex = 1,
 }: any) => (
   <View style={{ flex }}>
-    <Text style={styles.label}>{label}</Text>
+    <Text style={styles.labelModern}>{label}</Text>
     <Controller
       control={control}
       name={name}
       render={({ field: { onChange, onBlur, value } }) => (
         <TextInput
-          style={styles.input}
+          style={styles.inputModern}
           onBlur={onBlur}
           onChangeText={onChange}
           value={value ? String(value) : ""}
@@ -58,8 +57,8 @@ const InputGroup = ({
 );
 
 const IngredientCard = ({ title, prefix, control }: any) => (
-  <View style={styles.innerCard}>
-    <Text style={styles.innerCardTitle}>{title}</Text>
+  <View style={styles.innerCardModern}>
+    <Text style={styles.innerCardTitleModern}>{title}</Text>
     <View style={styles.row}>
       <InputGroup
         control={control}
@@ -68,7 +67,7 @@ const IngredientCard = ({ title, prefix, control }: any) => (
         flex={2}
       />
     </View>
-    <View style={[styles.row, { marginTop: 10 }]}>
+    <View style={[styles.row, { marginTop: 12 }]}>
       <InputGroup
         control={control}
         label="Fornecedor"
@@ -86,8 +85,8 @@ const IngredientCard = ({ title, prefix, control }: any) => (
 );
 
 const AnaliseCard = ({ title, prefix, control }: any) => (
-  <View style={styles.innerCard}>
-    <Text style={styles.innerCardTitle}>{title}</Text>
+  <View style={styles.innerCardModern}>
+    <Text style={styles.innerCardTitleModern}>{title}</Text>
     <View style={styles.row}>
       <InputGroup
         control={control}
@@ -102,7 +101,7 @@ const AnaliseCard = ({ title, prefix, control }: any) => (
         keyboard="numeric"
       />
     </View>
-    <View style={[styles.row, { marginTop: 10 }]}>
+    <View style={[styles.row, { marginTop: 12 }]}>
       <InputGroup
         control={control}
         label="SST/ATT"
@@ -120,8 +119,8 @@ const AnaliseCard = ({ title, prefix, control }: any) => (
 );
 
 const EmbalagemCard = ({ title, prefix, control }: any) => (
-  <View style={styles.innerCard}>
-    <Text style={styles.innerCardTitle}>{title}</Text>
+  <View style={styles.innerCardModern}>
+    <Text style={styles.innerCardTitleModern}>{title}</Text>
     <View style={styles.row}>
       <InputGroup
         control={control}
@@ -130,7 +129,7 @@ const EmbalagemCard = ({ title, prefix, control }: any) => (
         flex={2}
       />
     </View>
-    <View style={[styles.row, { marginTop: 10 }]}>
+    <View style={[styles.row, { marginTop: 12 }]}>
       <InputGroup
         control={control}
         label="Não Conforme"
@@ -152,6 +151,7 @@ export function SweetsMonitoringScreen() {
   const { usuarioId } = useContext(AuthContext);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   const emptyRecepcao = {
     turno: "",
@@ -167,7 +167,6 @@ export function SweetsMonitoringScreen() {
     total_caixas: 0,
   };
   const emptyIngredientes = {
-    ref_lote: "",
     ingrediente_fruta: { variedade_marca: "", fornecedor: "", peso_kg: 0 },
     ingrediente_agua: { variedade_marca: "", fornecedor: "", peso_kg: 0 },
     ingrediente_acucar: { variedade_marca: "", fornecedor: "", peso_kg: 0 },
@@ -175,12 +174,10 @@ export function SweetsMonitoringScreen() {
     ingrediente_suco: { variedade_marca: "", fornecedor: "", peso_kg: 0 },
   };
   const emptyAnalises = {
-    ref_lote: "",
     analise_fruta: { brix: 0, acidez: 0, relacao: 0, ph: 0 },
     analise_doce: { brix: 0, acidez: 0, relacao: 0, ph: 0 },
   };
   const emptyPerdasProd = {
-    ref_lote: "",
     perda_ponto_preto: 0,
     perda_corpo_estranho: 0,
     perda_pote_quebrado: 0,
@@ -190,7 +187,6 @@ export function SweetsMonitoringScreen() {
     perda_extras: "",
   };
   const emptyPerdasEmb = {
-    ref_lote: "",
     emb_potes: { fornecedor: "", nao_conforme: 0, quebra_estoque: 0 },
     emb_tampas: { fornecedor: "", nao_conforme: 0, quebra_estoque: 0 },
     emb_rotulos: { fornecedor: "", nao_conforme: 0, quebra_estoque: 0 },
@@ -201,6 +197,7 @@ export function SweetsMonitoringScreen() {
       resolver: zodResolver(sweetsMonitoringSchema) as any,
       defaultValues: {
         data: new Date(),
+        lote_produto: "",
         recepcoes: [emptyRecepcao],
         ingredientes: [emptyIngredientes],
         analises: [emptyAnalises],
@@ -235,20 +232,26 @@ export function SweetsMonitoringScreen() {
     remove: remEmb,
   } = useFieldArray({ control, name: "perdas_embalagem" });
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-
   useEffect(() => {
     const carregarRascunho = async () => {
       const rascunhoSalvo = await DraftService.getDraft(DRAFT_KEY);
       if (rascunhoSalvo) {
-        if (rascunhoSalvo.data) {
+        if (rascunhoSalvo.data)
           rascunhoSalvo.data = new Date(rascunhoSalvo.data);
-        }
         reset(rascunhoSalvo);
       }
     };
     carregarRascunho();
   }, [reset]);
+
+  const {
+    fields: brixFields,
+    append: addBrix,
+    remove: removeBrix,
+  } = useFieldArray({
+    control,
+    name: "brix_horarios",
+  });
 
   const formAtual = watch();
   useEffect(() => {
@@ -257,20 +260,13 @@ export function SweetsMonitoringScreen() {
 
   const onSubmit = async (data: SweetsMonitoringFormData) => {
     setIsSubmitting(true);
-
     try {
-      const payload = {
-        ...data,
-        usuarioId: usuarioId, // Rastreabilidade garantida!
-      };
-
+      const payload = { ...data, usuarioId: usuarioId };
       await api.post("/sweets", payload);
-
       Alert.alert("Sucesso", "Análise salva com sucesso!");
-      console.log(payload);
-
       reset({
         data: new Date(),
+        lote_produto: "",
         recepcoes: [emptyRecepcao],
         ingredientes: [emptyIngredientes],
         analises: [emptyAnalises],
@@ -278,11 +274,9 @@ export function SweetsMonitoringScreen() {
         perdas_embalagem: [emptyPerdasEmb],
       });
     } catch (error: any) {
-      console.error("Erro ao salvar LabFrutas:", error);
       Alert.alert(
         "Erro",
-        error.response?.data?.error ||
-          "Não foi possível conectar ao servidor para salvar a análise.",
+        error.response?.data?.error || "Erro ao salvar análise.",
       );
     } finally {
       setIsSubmitting(false);
@@ -301,78 +295,85 @@ export function SweetsMonitoringScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {/* CABEÇALHO */}
-          <View style={styles.header}>
-            <View
-              style={[
-                styles.headerIconContainer,
-                { backgroundColor: "#FFEDD5" },
-              ]}
-            >
+          
+          <View style={styles.headerContainer}>
+            <View style={styles.headerIconContainer}>
               <MaterialCommunityIcons
                 name="food-apple"
-                size={32}
-                color="#EA580C"
+                size={40}
+                color="#fff"
               />
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.headerTitle}>Elaboração de Doces</Text>
-              <Text style={styles.headerSubtitle}>
-                Monitoramento Fragmentado
-              </Text>
-            </View>
+            <Text style={styles.headerTitle}>Elaboração de Doces</Text>
+            <Text style={styles.headerSubtitle}>Monitoramento de Produção</Text>
           </View>
 
-          {/* DATA GERAL */}
-          <View style={styles.card}>
-            <Text style={styles.label}>DATA DE PRODUÇÃO GERAL</Text>
-            <TouchableOpacity
-              style={styles.dateButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <MaterialIcons
-                name="calendar-today"
-                size={16}
-                color="#475569"
-                style={{ marginRight: 8 }}
-              />
-              <Controller
-                control={control}
-                name="data"
-                render={({ field: { value } }) => (
-                  <Text style={styles.dateText}>
-                    {value
-                      ? new Date(value).toLocaleDateString("pt-BR")
-                      : "Selecione a data"}
-                  </Text>
+          
+          <View style={styles.modernCard}>
+            <View style={styles.cardHeader}>
+              <MaterialIcons name="info" size={22} color="#EA580C" />
+              <Text style={styles.cardHeaderTitle}>Informações Gerais</Text>
+            </View>
+
+            <View style={styles.rowMain}>
+              <View style={styles.halfField}>
+                <Text style={styles.labelModern}>Data de Produção</Text>
+                <TouchableOpacity
+                  style={styles.dateButtonModern}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <MaterialIcons name="event" size={20} color="#EA580C" />
+                  <Controller
+                    control={control}
+                    name="data"
+                    render={({ field: { value } }) => (
+                      <Text style={styles.dateButtonTextModern}>
+                        {value
+                          ? new Date(value).toLocaleDateString("pt-BR")
+                          : "Selecionar data"}
+                      </Text>
+                    )}
+                  />
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={new Date()}
+                    mode="date"
+                    display="default"
+                    onChange={(e, selectedDate?: Date) => {
+                      setShowDatePicker(Platform.OS === "ios");
+                      if (selectedDate) {
+                        const { onChange } = control._formValues;
+                      }
+                    }}
+                  />
                 )}
-              />
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={new Date()}
-                mode="date"
-                display="default"
-                onChange={(e, selectedDate?: Date) =>
-                  setShowDatePicker(Platform.OS === "ios")
-                }
-              />
-            )}
+              </View>
+
+              <View style={styles.halfField}>
+                <InputGroup
+                  control={control}
+                  label="Lote do Produto"
+                  name="lote_produto"
+                  placeholder="Ex: DOCE-102"
+                />
+              </View>
+            </View>
           </View>
 
-          {/* 1. RECEÇÃO E RESUMO */}
-          <View style={styles.sectionBlock}>
+          
+          <View style={styles.sectionBlockModern}>
             <Text style={styles.sectionBlockTitle}>1. Receção e Produção</Text>
             {recFields.map((field, index) => (
-              <View key={field.id} style={styles.dynamicCard}>
-                <View style={styles.dynamicHeader}>
+              <View key={field.id} style={styles.dynamicCardModern}>
+                <View style={styles.dynamicHeaderModern}>
                   <Text style={styles.dynamicTitle}>
                     Lote / Receção {index + 1}
                   </Text>
                   {recFields.length > 1 && (
                     <TouchableOpacity
                       onPress={() => remRec(index)}
-                      style={styles.removeBtn}
+                      style={styles.removeBtnModern}
                     >
                       <MaterialIcons name="close" size={20} color="#EA580C" />
                     </TouchableOpacity>
@@ -434,39 +435,34 @@ export function SweetsMonitoringScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={styles.addMiniBtn}
+              style={styles.addButtonModern}
               onPress={() => addRec(emptyRecepcao)}
             >
-              <MaterialIcons name="add" size={18} color="#EA580C" />
-              <Text style={styles.addMiniText}>Adicionar Receção</Text>
+              <MaterialIcons name="add" size={20} color="#EA580C" />
+              <Text style={styles.addButtonText}>Adicionar Receção</Text>
             </TouchableOpacity>
           </View>
 
-          {/* 2. INGREDIENTES */}
-          <View style={styles.sectionBlock}>
-            <Text style={styles.sectionBlockTitle}>2. Ingredientes</Text>
+          
+          <View style={styles.sectionBlockModern}>
+            <Text style={styles.sectionBlockTitle}>
+              2. Ingredientes Utilizados
+            </Text>
             {ingFields.map((field, index) => (
-              <View key={field.id} style={styles.dynamicCard}>
-                <View style={styles.dynamicHeader}>
+              <View key={field.id} style={styles.dynamicCardModern}>
+                <View style={styles.dynamicHeaderModern}>
                   <Text style={styles.dynamicTitle}>
                     Bloco Ingredientes {index + 1}
                   </Text>
                   {ingFields.length > 1 && (
                     <TouchableOpacity
                       onPress={() => remIng(index)}
-                      style={styles.removeBtn}
+                      style={styles.removeBtnModern}
                     >
                       <MaterialIcons name="close" size={20} color="#EA580C" />
                     </TouchableOpacity>
                   )}
                 </View>
-                <InputGroup
-                  control={control}
-                  label="Lote Referência"
-                  name={`ingredientes.${index}.ref_lote`}
-                  placeholder="Ex: Lote Manhã"
-                />
-                <View style={{ height: 12 }} />
                 <IngredientCard
                   control={control}
                   title="Fruta/Blender"
@@ -485,39 +481,32 @@ export function SweetsMonitoringScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={styles.addMiniBtn}
+              style={styles.addButtonModern}
               onPress={() => addIng(emptyIngredientes)}
             >
-              <MaterialIcons name="add" size={18} color="#EA580C" />
-              <Text style={styles.addMiniText}>Adicionar Ingredientes</Text>
+              <MaterialIcons name="add" size={20} color="#EA580C" />
+              <Text style={styles.addButtonText}>Adicionar Ingredientes</Text>
             </TouchableOpacity>
           </View>
 
-          {/* 3. ANÁLISES */}
-          <View style={styles.sectionBlock}>
+          
+          <View style={styles.sectionBlockModern}>
             <Text style={styles.sectionBlockTitle}>
               3. Análises Físico-Químicas
             </Text>
             {anaFields.map((field, index) => (
-              <View key={field.id} style={styles.dynamicCard}>
-                <View style={styles.dynamicHeader}>
+              <View key={field.id} style={styles.dynamicCardModern}>
+                <View style={styles.dynamicHeaderModern}>
                   <Text style={styles.dynamicTitle}>Análise {index + 1}</Text>
                   {anaFields.length > 1 && (
                     <TouchableOpacity
                       onPress={() => remAna(index)}
-                      style={styles.removeBtn}
+                      style={styles.removeBtnModern}
                     >
                       <MaterialIcons name="close" size={20} color="#EA580C" />
                     </TouchableOpacity>
                   )}
                 </View>
-                <InputGroup
-                  control={control}
-                  label="Lote Referência"
-                  name={`analises.${index}.ref_lote`}
-                  placeholder="Ex: Lote 01"
-                />
-                <View style={{ height: 12 }} />
                 <AnaliseCard
                   control={control}
                   title="Análise da Fruta"
@@ -531,39 +520,32 @@ export function SweetsMonitoringScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={styles.addMiniBtn}
+              style={styles.addButtonModern}
               onPress={() => addAna(emptyAnalises)}
             >
-              <MaterialIcons name="add" size={18} color="#EA580C" />
-              <Text style={styles.addMiniText}>Nova Análise</Text>
+              <MaterialIcons name="add" size={20} color="#EA580C" />
+              <Text style={styles.addButtonText}>Nova Análise</Text>
             </TouchableOpacity>
           </View>
 
-          {/* 4. PERDAS PRODUÇÃO */}
-          <View style={styles.sectionBlock}>
+          
+          <View style={styles.sectionBlockModern}>
             <Text style={styles.sectionBlockTitle}>4. Perdas de Produção</Text>
             {prodFields.map((field, index) => (
-              <View key={field.id} style={styles.dynamicCard}>
-                <View style={styles.dynamicHeader}>
+              <View key={field.id} style={styles.dynamicCardModern}>
+                <View style={styles.dynamicHeaderModern}>
                   <Text style={styles.dynamicTitle}>
                     Registo de Perdas {index + 1}
                   </Text>
                   {prodFields.length > 1 && (
                     <TouchableOpacity
                       onPress={() => remProd(index)}
-                      style={styles.removeBtn}
+                      style={styles.removeBtnModern}
                     >
                       <MaterialIcons name="close" size={20} color="#EA580C" />
                     </TouchableOpacity>
                   )}
                 </View>
-                <InputGroup
-                  control={control}
-                  label="Lote Referência"
-                  name={`perdas_producao.${index}.ref_lote`}
-                  placeholder="Ex: Lote 01"
-                />
-                <View style={{ height: 12 }} />
                 <View style={styles.row}>
                   <InputGroup
                     control={control}
@@ -587,39 +569,32 @@ export function SweetsMonitoringScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={styles.addMiniBtn}
+              style={styles.addButtonModern}
               onPress={() => addProd(emptyPerdasProd)}
             >
-              <MaterialIcons name="add" size={18} color="#EA580C" />
-              <Text style={styles.addMiniText}>Registo de Perdas</Text>
+              <MaterialIcons name="add" size={20} color="#EA580C" />
+              <Text style={styles.addButtonText}>Registo de Perdas</Text>
             </TouchableOpacity>
           </View>
 
-          {/* 5. PERDAS EMBALAGEM */}
-          <View style={styles.sectionBlock}>
+          
+          <View style={styles.sectionBlockModern}>
             <Text style={styles.sectionBlockTitle}>5. Perdas de Embalagem</Text>
             {embFields.map((field, index) => (
-              <View key={field.id} style={styles.dynamicCard}>
-                <View style={styles.dynamicHeader}>
+              <View key={field.id} style={styles.dynamicCardModern}>
+                <View style={styles.dynamicHeaderModern}>
                   <Text style={styles.dynamicTitle}>
                     Perdas Embalagem {index + 1}
                   </Text>
                   {embFields.length > 1 && (
                     <TouchableOpacity
                       onPress={() => remEmb(index)}
-                      style={styles.removeBtn}
+                      style={styles.removeBtnModern}
                     >
                       <MaterialIcons name="close" size={20} color="#EA580C" />
                     </TouchableOpacity>
                   )}
                 </View>
-                <InputGroup
-                  control={control}
-                  label="Lote Referência"
-                  name={`perdas_embalagem.${index}.ref_lote`}
-                  placeholder="Ex: Potes 500g"
-                />
-                <View style={{ height: 12 }} />
                 <EmbalagemCard
                   control={control}
                   title="Potes"
@@ -633,17 +608,127 @@ export function SweetsMonitoringScreen() {
               </View>
             ))}
             <TouchableOpacity
-              style={styles.addMiniBtn}
+              style={styles.addButtonModern}
               onPress={() => addEmb(emptyPerdasEmb)}
             >
-              <MaterialIcons name="add" size={18} color="#EA580C" />
-              <Text style={styles.addMiniText}>Perdas Embalagem</Text>
+              <MaterialIcons name="add" size={20} color="#EA580C" />
+              <Text style={styles.addButtonText}>Perdas Embalagem</Text>
             </TouchableOpacity>
           </View>
 
-          {/* 6. VALIDAÇÃO FINAL */}
-          <View style={styles.card}>
-            <Text style={styles.sectionTitleSmall}>6. Validação Geral</Text>
+          
+          <View style={styles.modernCard}>
+            <View style={styles.cardHeader}>
+              <MaterialIcons name="schedule" size={22} color="#EA580C" />
+              <Text style={styles.cardHeaderTitle}>Tempos de Processo</Text>
+            </View>
+
+            <Text style={styles.subHeaderModern}>Envase</Text>
+            <View style={styles.row}>
+              <InputGroup
+                control={control}
+                label="Início"
+                name="hora_ini_envase"
+                placeholder="00:00"
+                keyboard="numbers-and-punctuation"
+              />
+              <InputGroup
+                control={control}
+                label="Fim"
+                name="hora_fim_envase"
+                placeholder="00:00"
+                keyboard="numbers-and-punctuation"
+              />
+            </View>
+
+            <Text style={[styles.subHeaderModern, { marginTop: 16 }]}>
+              Pasteurização
+            </Text>
+            <View style={styles.row}>
+              <InputGroup
+                control={control}
+                label="Início"
+                name="hora_ini_pasteurizacao"
+                placeholder="00:00"
+                keyboard="numbers-and-punctuation"
+              />
+              <InputGroup
+                control={control}
+                label="Fim"
+                name="hora_fim_pasteurizacao"
+                placeholder="00:00"
+                keyboard="numbers-and-punctuation"
+              />
+            </View>
+          </View>
+
+          
+          <View style={styles.modernCard}>
+            <View style={styles.cardHeader}>
+              <MaterialIcons name="thermostat" size={22} color="#EA580C" />
+              <Text style={styles.cardHeaderTitle}>
+                Monitoramento de Produção (°Brix)
+              </Text>
+            </View>
+
+            {brixFields.map((field, index) => (
+              <View
+                key={field.id}
+                style={[
+                  styles.row,
+                  { alignItems: "flex-end", marginBottom: 12 },
+                ]}
+              >
+                <InputGroup
+                  control={control}
+                  label={`Horário ${index + 1}`}
+                  name={`brix_horarios.${index}.horario`}
+                  placeholder="00:00"
+                />
+                <View style={{ width: 12 }} />
+                <InputGroup
+                  control={control}
+                  label="°Brix"
+                  name={`brix_horarios.${index}.brix`}
+                  placeholder="Valor"
+                  keyboard="numeric"
+                />
+
+                <TouchableOpacity
+                  onPress={() => removeBrix(index)}
+                  style={styles.deleteButton}
+                >
+                  <MaterialIcons
+                    name="delete-outline"
+                    size={24}
+                    color="#EF4444"
+                  />
+                </TouchableOpacity>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={styles.addButtonModern}
+              onPress={() => addBrix({ horario: "", brix: undefined })}
+            >
+              <MaterialIcons
+                name="add-circle-outline"
+                size={20}
+                color="#EA580C"
+              />
+              <Text style={styles.addButtonText}>
+                Adicionar Leitura de °Brix
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          
+          <View style={styles.modernCard}>
+            <View style={styles.cardHeader}>
+              <MaterialIcons name="check" size={22} color="#EA580C" />
+              <Text style={styles.cardHeaderTitle}>Validação Geral</Text>
+            </View>
+
             <InputGroup
               control={control}
               label="Observações do Dia"
@@ -660,16 +745,23 @@ export function SweetsMonitoringScreen() {
           </View>
 
           <TouchableOpacity
-            style={styles.submitButton}
+            style={styles.saveButton}
             onPress={handleSubmit(onSubmit)}
             activeOpacity={0.8}
+            disabled={isSubmitting}
           >
-            <Text style={styles.submitText}>Guardar Monitoramento Oficial</Text>
-            <MaterialCommunityIcons
-              name="content-save-all"
-              size={24}
-              color="#fff"
-            />
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.saveButtonText}>Guardar Monitoramento</Text>
+                <MaterialCommunityIcons
+                  name="content-save-all"
+                  size={24}
+                  color="#fff"
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -678,78 +770,140 @@ export function SweetsMonitoringScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F1F5F9" },
-  content: { padding: 16, paddingBottom: 60 },
-  header: {
-    marginBottom: 20,
-    flexDirection: "row",
+  container: {
+    flex: 1,
+    backgroundColor: "#F1F5F9",
+  },
+  content: {
+    padding: 20,
+    paddingBottom: 30,
+  },
+
+  headerContainer: {
+    backgroundColor: "#EA580C",
+    paddingVertical: 40,
+    paddingHorizontal: 20,
     alignItems: "center",
-    gap: 16,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    marginBottom: 20,
   },
   headerIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 16,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: "rgba(255,255,255,0.2)",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 12,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#1E293B",
-    letterSpacing: -0.5,
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#fff",
+    marginTop: 8,
+    letterSpacing: 0.5,
   },
-  headerSubtitle: { fontSize: 15, color: "#64748B", fontWeight: "600" },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#fff",
+    opacity: 0.9,
+    marginTop: 4,
+  },
 
-  card: {
+  modernCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    marginBottom: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 12,
+    borderBottomWidth: 2,
+    borderBottomColor: "#E2E8F0",
+  },
+  cardHeaderTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1E293B",
+    marginLeft: 10,
+  },
+
+  sectionBlockModern: {
     backgroundColor: "#FFFFFF",
     borderRadius: 20,
     padding: 20,
     marginBottom: 20,
-    shadowColor: "#0F172A",
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  sectionBlock: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    elevation: 2,
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 8,
   },
   sectionBlockTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F172A",
-    marginBottom: 16,
-    textTransform: "uppercase",
-  },
-  sectionTitleSmall: {
-    fontSize: 14,
-    fontWeight: "800",
+    fontSize: 18,
+    fontWeight: "700",
     color: "#EA580C",
     marginBottom: 16,
-    textTransform: "uppercase",
   },
 
-  dynamicCard: {
-    backgroundColor: "#FAFAFA",
+  rowMain: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  halfField: {
+    flex: 1,
+  },
+  labelModern: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+    marginBottom: 8,
+  },
+  inputModern: {
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    fontSize: 15,
+    backgroundColor: "#F8FAFC",
+    color: "#0F172A",
+  },
+  dateButtonModern: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderColor: "#E2E8F0",
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: "#F8FAFC",
+    gap: 10,
+  },
+  dateButtonTextModern: {
+    fontSize: 15,
+    color: "#334155",
+    flex: 1,
+  },
+
+  dynamicCardModern: {
+    backgroundColor: "#F8FAFC",
     borderRadius: 16,
     padding: 16,
     borderWidth: 1,
     borderColor: "#FED7AA",
     marginBottom: 16,
   },
-  dynamicHeader: {
+  dynamicHeaderModern: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -760,13 +914,16 @@ const styles = StyleSheet.create({
   },
   dynamicTitle: {
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "700",
     color: "#EA580C",
-    textTransform: "uppercase",
   },
-  removeBtn: { padding: 6, backgroundColor: "#FFEDD5", borderRadius: 8 },
+  removeBtnModern: {
+    padding: 6,
+    backgroundColor: "#FFEDD5",
+    borderRadius: 8,
+  },
 
-  innerCard: {
+  innerCardModern: {
     backgroundColor: "#FFFFFF",
     padding: 16,
     borderRadius: 12,
@@ -774,51 +931,31 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     marginBottom: 12,
   },
-  innerCardTitle: {
-    fontSize: 13,
-    fontWeight: "800",
+  innerCardTitleModern: {
+    fontSize: 14,
+    fontWeight: "700",
     color: "#EA580C",
     marginBottom: 12,
-    textTransform: "uppercase",
   },
 
-  row: { flexDirection: "row", gap: 10, alignItems: "flex-end" },
-  label: {
-    fontSize: 10,
-    color: "#64748B",
-    marginBottom: 6,
-    fontWeight: "700",
-    textTransform: "uppercase",
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    fontSize: 14,
-    backgroundColor: "#FFFFFF",
-    color: "#0F172A",
-    fontWeight: "500",
-  },
-
-  dateButton: {
+  row: {
     flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1.5,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    backgroundColor: "#FFFFFF",
+    gap: 12,
   },
-  dateText: { fontSize: 14, color: "#0F172A", fontWeight: "500" },
 
-  addMiniBtn: {
+  subHeaderModern: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#64748B",
+    marginBottom: 12,
+    marginTop: 8,
+  },
+
+  addButtonModern: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 8,
     padding: 12,
     backgroundColor: "#FFF7ED",
     borderRadius: 12,
@@ -826,23 +963,32 @@ const styles = StyleSheet.create({
     borderColor: "#FDBA74",
     borderStyle: "dashed",
   },
-  addMiniText: { color: "#EA580C", fontWeight: "800", fontSize: 13 },
-
-  submitButton: {
+  addButtonText: {
+    color: "#EA580C",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  deleteButton: {
+    padding: 12,
+    marginBottom: 4,
+  },
+  saveButton: {
     backgroundColor: "#EA580C",
-    borderRadius: 16,
-    paddingVertical: 18,
+    borderRadius: 15,
+    marginTop: 10,
+    marginBottom: 20,
+    paddingVertical: 16,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
-    marginTop: 10,
+    gap: 10,
     shadowColor: "#EA580C",
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    elevation: 8,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  submitText: {
+  saveButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",

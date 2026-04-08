@@ -159,7 +159,7 @@ export function SensoryAnalysisScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* Cabeçalho */}
+          
           <View style={styles.header}>
             <View
               style={[
@@ -181,7 +181,7 @@ export function SensoryAnalysisScreen() {
             </View>
           </View>
 
-          {/* Informações Iniciais */}
+          
           <View style={styles.card}>
             <View style={styles.rowMain}>
               <View style={{ flex: 1 }}>
@@ -243,7 +243,7 @@ export function SensoryAnalysisScreen() {
             </View>
           </View>
 
-          {/* Legenda Box */}
+          
           <View style={styles.infoBox}>
             <View style={styles.infoHeader}>
               <MaterialIcons name="info-outline" size={20} color="#0284C7" />
@@ -269,7 +269,7 @@ export function SensoryAnalysisScreen() {
             </View>
           </View>
 
-          {/* --- QUESTIONÁRIO DINÂMICO --- */}
+          
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="assignment" size={20} color="#0F172A" />
@@ -280,18 +280,18 @@ export function SensoryAnalysisScreen() {
               <RatingScale name="aparencia" question={`sua APARÊNCIA`} />
               <RatingScale name="sabor" question={`seu SABOR`} />
 
-              {/* Específicos de Geleia */}
+              
               {!isSuco && (
                 <RatingScale name="textura" question={`sua TEXTURA`} />
               )}
 
-              {/* Específicos de Suco */}
+              
               {isSuco && <RatingScale name="aroma" question={`seu AROMA`} />}
 
               <RatingScale name="acidez" question={`sua ACIDEZ`} />
               <RatingScale name="docura" question={`sua DOÇURA`} />
 
-              {/* Específico de Suco */}
+              
               {isSuco && <RatingScale name="cor" question={`sua COR`} />}
 
               <RatingScale
@@ -301,7 +301,7 @@ export function SensoryAnalysisScreen() {
             </View>
           </View>
 
-          {/* Comentários Finais */}
+          
           <View style={styles.card}>
             <Text style={styles.label}>COMENTÁRIOS ADICIONAIS</Text>
             <Controller

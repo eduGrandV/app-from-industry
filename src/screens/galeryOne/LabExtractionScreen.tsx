@@ -49,114 +49,14 @@ const InputGroup = ({
             onChangeText={onChange}
             value={value ? String(value) : ""}
             keyboardType={keyboardType}
-            placeholder={placeholder || `Digite ${label.toLowerCase()}`}
+            placeholder={placeholder || `${label.toLowerCase()}`}
             placeholderTextColor="#94a3b8"
           />
         )}
       />
-      {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-    </View>
-  );
-};
-
-const MultiSelectChipsWithAdd = ({
-  control,
-  name,
-  label,
-  defaultOptions,
-}: any) => {
-  const [isAdding, setIsAdding] = useState(false);
-  const [customColor, setCustomColor] = useState("");
-
-  return (
-    <View style={styles.inputContainer}>
-      <Text style={styles.label}>{label}</Text>
-      <Controller
-        control={control}
-        name={name}
-        render={({ field: { onChange, value } }) => {
-          const selectedValues = Array.isArray(value) ? value : [];
-
-          const allOptions = Array.from(
-            new Set([...defaultOptions, ...selectedValues]),
-          );
-
-          const toggleSelection = (opt: string) => {
-            if (selectedValues.includes(opt))
-              onChange(selectedValues.filter((v) => v !== opt));
-            else onChange([...selectedValues, opt]);
-          };
-
-          const handleAddCustom = () => {
-            const trimmed = customColor.trim();
-            if (trimmed !== "") {
-              if (!selectedValues.includes(trimmed)) {
-                onChange([...selectedValues, trimmed]);
-              }
-              setCustomColor("");
-              setIsAdding(false);
-            }
-          };
-
-          return (
-            <View style={styles.chipsContainer}>
-              {allOptions.map((opt: string) => {
-                const isSelected = selectedValues.includes(opt);
-                return (
-                  <TouchableOpacity
-                    key={opt}
-                    style={[styles.chip, isSelected && styles.chipSelected]}
-                    onPress={() => toggleSelection(opt)}
-                    activeOpacity={0.7}
-                  >
-                    <Text
-                      style={[
-                        styles.chipText,
-                        isSelected && styles.chipTextSelected,
-                      ]}
-                    >
-                      {opt}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-
-              {!isAdding ? (
-                <TouchableOpacity
-                  style={styles.chipAddButton}
-                  onPress={() => setIsAdding(true)}
-                >
-                  <MaterialIcons name="add" size={18} color="#6200ee" />
-                  <Text style={styles.chipAddText}>Outra Cor</Text>
-                </TouchableOpacity>
-              ) : (
-                <View style={styles.customChipInputContainer}>
-                  <TextInput
-                    style={styles.customChipInput}
-                    value={customColor}
-                    onChangeText={setCustomColor}
-                    placeholder="Digite a cor..."
-                    autoFocus
-                    onSubmitEditing={handleAddCustom}
-                  />
-                  <TouchableOpacity
-                    style={styles.customChipConfirm}
-                    onPress={handleAddCustom}
-                  >
-                    <MaterialIcons name="check" size={18} color="#fff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.customChipCancel}
-                    onPress={() => setIsAdding(false)}
-                  >
-                    <MaterialIcons name="close" size={18} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          );
-        }}
-      />
+      {errorMessage && (
+        <Text style={styles.errorText}>{errorMessage as string}</Text>
+      )}
     </View>
   );
 };
@@ -174,19 +74,21 @@ export function LabExtractionScreen() {
       data: new Date(),
       variedade: "",
       fornecedor: "",
-      naoh: 0,
-      brix: 0,
-      acidez: 0,
-      ph: 0,
-      ratio: 0,
-      densidade: 0,
-      temp: 0,
+      naoh: undefined,
+      brix: undefined,
+      acidez: undefined,
+      ph: undefined,
+      ratio: undefined,
+      densidade: undefined,
+      temp: undefined,
       aroma: "",
-      cor: [],
-      qtde_bag: 0,
-      volume: 0,
-      sequencias: [{ inicio: 0, fim: 0 }],
-    },
+      cor_420nm: undefined,
+      cor_520nm: undefined,
+      cor_620nm: undefined,
+      qtde_bag: undefined,
+      volume: undefined,
+      sequencias: [{ inicio: undefined as any, fim: undefined as any }],
+    } as any,
   });
 
   const {
@@ -234,20 +136,41 @@ export function LabExtractionScreen() {
 
       Alert.alert("Sucesso", "Análise laboratorial salva com sucesso!");
 
-      reset();
+      reset({
+        data: new Date(),
+        variedade: "",
+        fornecedor: "",
+        naoh: undefined,
+        brix: undefined,
+        acidez: undefined,
+        ph: undefined,
+        ratio: undefined,
+        densidade: undefined,
+        temp: undefined,
+        aroma: "",
+        cor_420nm: undefined,
+        cor_520nm: undefined,
+        cor_620nm: undefined,
+        qtde_bag: undefined,
+        volume: undefined,
+        sequencias: [{ inicio: undefined as any, fim: undefined as any }],
+      });
+      DraftService.clearDraft(DRAFT_KEY);
     } catch (error: any) {
-      console.error("Erro ao salvar LabFrutas:", error);
-      Alert.alert(
-        "Erro",
-        error.response?.data?.error ||
-          "Não foi possível conectar ao servidor para salvar a análise.",
-      );
+      console.error("Erro ao salvar LabExtraction:", error);
+
+      const erroRetornado = error.response?.data?.error || error.message;
+      const mensagemSegura =
+        typeof erroRetornado === "string"
+          ? erroRetornado
+          : JSON.stringify(erroRetornado || "Erro desconhecido de rede.");
+
+      Alert.alert("Erro", mensagemSegura);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const coresBase = [""];
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -267,7 +190,7 @@ export function LabExtractionScreen() {
             </Text>
           </View>
 
-          {/* 1. IDENTIFICAÇÃO */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="fingerprint" size={20} color="#6200ee" />
@@ -333,7 +256,7 @@ export function LabExtractionScreen() {
             />
           </View>
 
-          {/* 2. QUÍMICA */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="science" size={20} color="#6200ee" />
@@ -386,7 +309,7 @@ export function LabExtractionScreen() {
             />
           </View>
 
-          {/* 3. FÍSICO & SENSORIAL */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="thermostat" size={20} color="#6200ee" />
@@ -419,16 +342,48 @@ export function LabExtractionScreen() {
               errors={errors}
             />
 
-            {/* Múltipla Escolha de Cores com Botão + */}
-            <MultiSelectChipsWithAdd
-              control={control}
-              name="cor"
-              label="Cor(es) da Amostra"
-              defaultOptions={coresBase}
-            />
+            <Text
+              style={[
+                styles.label,
+                { marginTop: 12, marginBottom: 8, color: "#334155" },
+              ]}
+            >
+              LEITURA DE COR
+            </Text>
+
+            <View style={styles.row}>
+              <InputGroup
+                name="cor_420nm"
+                label="(420 nm)"
+                keyboardType="numeric"
+                width="half"
+                control={control}
+                errors={errors}
+              />
+              <InputGroup
+                name="cor_520nm"
+                label="(520 nm)"
+                keyboardType="numeric"
+                width="half"
+                control={control}
+                errors={errors}
+              />
+            </View>
+
+            <View style={styles.row}>
+              <InputGroup
+                name="cor_620nm"
+                label="(620 nm)"
+                keyboardType="numeric"
+                width="half"
+                control={control}
+                errors={errors}
+              />
+              <View style={styles.halfInput} />
+            </View>
           </View>
 
-          {/* 4. PRODUÇÃO E SEQUÊNCIA DE BAGS */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="factory" size={20} color="#6200ee" />
@@ -509,7 +464,7 @@ export function LabExtractionScreen() {
             </View>
           </View>
 
-          {/* Botão Salvar */}
+          
           <TouchableOpacity
             style={styles.saveButton}
             onPress={handleSubmit(onSubmit)}

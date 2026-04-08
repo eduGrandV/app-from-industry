@@ -16,7 +16,7 @@ export function GalleryThreeDashboard() {
 
       <ScrollView contentContainerStyle={styles.content}>
         
-        {/* LINHA DE ENVASE */}
+        
         <TouchableOpacity 
           style={styles.card} 
           onPress={() => navigateToLog('Linha de Envase')}
@@ -32,7 +32,7 @@ export function GalleryThreeDashboard() {
           <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
-        {/* REGISTRO DE EXTRAÇÃO */}
+        
         <TouchableOpacity 
           style={styles.card} 
           onPress={() => navigateToLog('Registro de Extração')}
@@ -48,7 +48,7 @@ export function GalleryThreeDashboard() {
           <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
-        {/*  LINHA DE VINHO */}
+        
         <TouchableOpacity 
           style={styles.card} 
           onPress={() => navigateToLog('Linha de Vinho')}
@@ -64,7 +64,7 @@ export function GalleryThreeDashboard() {
           <MaterialCommunityIcons name="chevron-right" size={24} color="#CBD5E1" />
         </TouchableOpacity>
 
-        {/* OPÇÃO 4: pragas */}
+        
         <TouchableOpacity 
           style={styles.card} 
           onPress={() => navigation.navigate('PestControl')} // Nome definido no navigator

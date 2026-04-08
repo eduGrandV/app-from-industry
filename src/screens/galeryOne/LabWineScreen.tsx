@@ -183,7 +183,7 @@ export function LabWineScreen() {
             </Text>
           </View>
 
-          {/* Seção 1: Identificação da Amostra */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="wine-bar" size={20} color="#004d40" />
@@ -199,7 +199,7 @@ export function LabWineScreen() {
               "Digite o nome do analista",
             )}
 
-            {/* Linha com Data e Marca/Tanque */}
+            
             <View style={styles.row}>
               <View style={styles.dateContainer}>
                 <Text style={styles.label}>Data da Análise</Text>
@@ -256,7 +256,7 @@ export function LabWineScreen() {
             {renderInput("lote", "Lote", "default", "Digite o número do lote")}
           </View>
 
-          {/* Seção 2: Parâmetros Analíticos */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="science" size={20} color="#004d40" />
@@ -358,7 +358,7 @@ export function LabWineScreen() {
             )}
           </View>
 
-          {/* Seção 3: Açúcar Residual */}
+          
           <View style={styles.sectionContainer}>
             <View style={styles.sectionHeader}>
               <MaterialIcons name="opacity" size={20} color="#004d40" />
@@ -401,7 +401,7 @@ export function LabWineScreen() {
             </View>
           </View>
 
-          {/* Botão Salvar */}
+          
           <TouchableOpacity
             style={[styles.saveButton, { backgroundColor: "#004d40" }]}
             onPress={handleSubmit(onSubmit)}

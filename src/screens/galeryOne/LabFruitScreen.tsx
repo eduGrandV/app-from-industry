@@ -1,28 +1,26 @@
-import React, { useContext, useState } from "react";
+import React, { useState, useContext } from "react";
 import {
   View,
+  Text,
+  TextInput,
+  TouchableOpacity,
   ScrollView,
-  StyleSheet,
   Platform,
   Alert,
-  TextInput,
-  Text,
-  TouchableOpacity,
   SafeAreaView,
   KeyboardAvoidingView,
+  ActivityIndicator,
+  StyleSheet,
 } from "react-native";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { MaterialIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 
-import {
-  labFruitSchema,
-  LabFruitFormData,
-} from "../../types/galeryOne/labFruitSchema";
 import { AuthContext } from "../../contexts/AuthContext";
 import { api } from "../../services/api";
-import { ActivityIndicator } from "react-native-paper";
+import { LabFruitFormData, labFruitSchema } from "../../types/galeryOne/labFruitSchema";
 
 export function LabFruitScreen() {
   const {
@@ -30,13 +28,15 @@ export function LabFruitScreen() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm({
-    resolver: zodResolver(labFruitSchema),
+  } = useForm<LabFruitFormData>({
+    resolver: zodResolver(labFruitSchema) as any,
     defaultValues: {
       data: new Date(),
       variedade: "",
       area: "",
       linha: "",
+      maturacao: "", 
+      cor: undefined, 
     },
   });
 
@@ -51,7 +51,7 @@ export function LabFruitScreen() {
     try {
       const payload = {
         ...data,
-        usuarioId: usuarioId, // Rastreabilidade garantida!
+        usuarioId: usuarioId, 
       };
 
       await api.post("/lab-frutas", payload);
@@ -63,13 +63,14 @@ export function LabFruitScreen() {
         variedade: "",
         area: "",
         linha: "",
+        maturacao: "",
+        cor: undefined,
       });
     } catch (error: any) {
       console.error("Erro ao salvar LabFrutas:", error);
       Alert.alert(
         "Erro",
-        error.response?.data?.error ||
-          "Não foi possível conectar ao servidor para salvar a análise.",
+        error.response?.data?.error || "Não foi possível conectar ao servidor para salvar a análise."
       );
     } finally {
       setIsSubmitting(false);
@@ -77,20 +78,19 @@ export function LabFruitScreen() {
   };
 
   const renderInput = (
-    name: string,
+    name: keyof LabFruitFormData,
     label: string,
     keyboardType: "default" | "numeric" = "default",
-    placeholder?: string,
+    placeholder?: string
   ) => {
-    const errorObj = (errors as any)[name];
-    const errorMessage = errorObj?.message;
+    const errorMessage = errors[name]?.message;
 
     return (
       <View style={styles.inputContainer}>
         <Text style={styles.label}>{label}</Text>
         <Controller
           control={control}
-          name={name as any}
+          name={name}
           render={({ field: { onChange, onBlur, value } }) => (
             <TextInput
               style={[styles.input, errorMessage && styles.inputError]}
@@ -103,34 +103,22 @@ export function LabFruitScreen() {
             />
           )}
         />
-        {errorMessage && (
-          <Text style={styles.errorText}>{errorMessage as string}</Text>
-        )}
+        {errorMessage && <Text style={styles.errorText}>{errorMessage as string}</Text>}
       </View>
     );
   };
 
-return (
+  return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={150}
-      >
-        <ScrollView
-          contentContainerStyle={styles.content}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Cabeçalho da Seção */}
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }} keyboardVerticalOffset={150}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Dados da Análise</Text>
-            <Text style={styles.sectionSubtitle}>
-              Preencha as informações da análise laboratorial
-            </Text>
+            <Text style={styles.sectionSubtitle}>Preencha as informações da análise laboratorial</Text>
           </View>
 
-          {/* Campo de Data */}
+          
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Data da Análise</Text>
             <Controller
@@ -138,31 +126,17 @@ return (
               name="data"
               render={({ field: { value, onChange } }) => (
                 <View>
-                  <TouchableOpacity
-                    style={styles.dateButton}
-                    onPress={() => setShowDatePicker(true)}
-                    activeOpacity={0.7}
-                  >
-                    <MaterialIcons
-                      name="calendar-today"
-                      size={20}
-                      color="#6200ee"
-                    />
+                  <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)} activeOpacity={0.7}>
+                    <MaterialIcons name="calendar-today" size={20} color="#6200ee" />
                     <Text style={styles.dateButtonText}>
-                      {value
-                        ? new Date(value as any).toLocaleDateString("pt-BR")
-                        : "Selecionar Data"}
+                      {value ? new Date(value).toLocaleDateString("pt-BR") : "Selecionar Data"}
                     </Text>
-                    <MaterialIcons
-                      name="chevron-right"
-                      size={20}
-                      color="#64748b"
-                    />
+                    <MaterialIcons name="chevron-right" size={20} color="#64748b" />
                   </TouchableOpacity>
 
                   {showDatePicker && (
                     <DateTimePicker
-                      value={value ? new Date(value as any) : new Date()}
+                      value={value ? new Date(value) : new Date()}
                       mode="date"
                       display="default"
                       onChange={(event, selectedDate) => {
@@ -176,38 +150,47 @@ return (
             />
           </View>
 
-          {/* Inputs do Formulário */}
-          {renderInput(
-            "variedade",
-            "Variedade",
-            "default",
-            "Digite a variedade da fruta"
-          )}
+          {renderInput("variedade", "Variedade", "default", "Digite a variedade da fruta")}
 
           <View style={styles.row}>
-            <View style={styles.halfInput}>
-              {renderInput("area", "Área", "default", "Ex: Campo 1")}
-            </View>
-            <View style={styles.halfInput}>
-              {renderInput("linha", "Linha", "default", "Ex: Linha A")}
-            </View>
+            <View style={styles.halfInput}>{renderInput("area", "Área", "default", "Ex: Campo 1")}</View>
+            <View style={styles.halfInput}>{renderInput("linha", "Linha", "default", "Ex: Linha A")}</View>
           </View>
+
+          
+          {renderInput("maturacao", "Maturação", "default", "Ex: Grau 2 / Madura")}
+
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Cor da Fruta</Text>
+            <Controller
+              control={control}
+              name="cor"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.radioGroup}>
+                  {["Amarelo", "Creme", "Verde"].map((opcaoColor) => (
+                    <TouchableOpacity
+                      key={opcaoColor}
+                      style={[styles.radioBtn, value === opcaoColor && styles.radioBtnActive]}
+                      onPress={() => onChange(opcaoColor)}
+                    >
+                      <Text style={[styles.radioTxt, value === opcaoColor && styles.radioTxtActive]}>
+                        {opcaoColor}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            />
+            {errors.cor && <Text style={styles.errorText}>{errors.cor.message as string}</Text>}
+          </View>
+          
 
           {renderInput("brix", "°Brix", "numeric", "Digite o valor em °Brix")}
           {renderInput("ph", "pH", "numeric", "Digite o valor do pH")}
 
           <View style={styles.row}>
-            <View style={styles.halfInput}>
-              {renderInput(
-                "acidez",
-                "Acidez (%)",
-                "numeric",
-                "Digite a acidez"
-              )}
-            </View>
-            <View style={styles.halfInput}>
-              {renderInput("ratio", "Ratio", "numeric", "Digite o ratio")}
-            </View>
+            <View style={styles.halfInput}>{renderInput("acidez", "Acidez (%)", "numeric", "Digite a acidez")}</View>
+            <View style={styles.halfInput}>{renderInput("ratio", "Ratio", "numeric", "Digite o ratio")}</View>
           </View>
 
           {renderInput("naoh", "NaOH", "numeric", "Digite o valor de NaOH")}
@@ -232,6 +215,8 @@ return (
     </SafeAreaView>
   );
 }
+
+
 
 const styles = StyleSheet.create({
   container: {
@@ -270,7 +255,7 @@ const styles = StyleSheet.create({
     fontWeight: "400",
   },
   content: {
-    flexGrow: 1, // Isso ajuda o ScrollView a se adaptar ao KeyboardAvoidingView
+    flexGrow: 1, 
     padding: 20,
     paddingBottom: 40,
   },
@@ -381,5 +366,32 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     color: "#fff",
+  },
+   radioGroup: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 4,
+  },
+  radioBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    borderRadius: 8,
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+  },
+  radioBtnActive: {
+    borderColor: "#6200EE",
+    backgroundColor: "#F3E8FF",
+  },
+  radioTxt: {
+    color: "#64748B",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  radioTxtActive: {
+    color: "#6200EE",
+    fontWeight: "bold",
   },
 });

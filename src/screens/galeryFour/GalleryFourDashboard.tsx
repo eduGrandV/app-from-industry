@@ -15,7 +15,7 @@ export function GalleryForDashboard() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Card 1: Análise Sensorial de Suco */}
+        
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
@@ -40,7 +40,7 @@ export function GalleryForDashboard() {
             color="#CBD5E1"
           />
         </TouchableOpacity>
-        {/* Card 2: Análise Sensorial de Geleia/Doce */}
+        
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
@@ -129,7 +129,7 @@ export function GalleryForDashboard() {
             color="#CBD5E1"
           />
         </TouchableOpacity>
-     {/* Card: Monitoramento de Uvas Passas */}
+     
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
@@ -149,7 +149,7 @@ export function GalleryForDashboard() {
           />
         </TouchableOpacity>
 
-        {/* Card: Monitoramento de Vinhos */}
+        
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
@@ -169,7 +169,7 @@ export function GalleryForDashboard() {
           />
         </TouchableOpacity>
 
-        {/* Card: Monitoramento de Doces */}
+        
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}
@@ -189,7 +189,7 @@ export function GalleryForDashboard() {
           />
         </TouchableOpacity>
 
-        {/* Card: Monitoramento de Envase */}
+        
         <TouchableOpacity
           style={styles.card}
           activeOpacity={0.7}

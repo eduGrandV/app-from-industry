@@ -111,7 +111,7 @@ export function RaisinMonitoringScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* CABEÇALHO */}
+          
           <View style={styles.header}>
             <View
               style={[
@@ -133,7 +133,7 @@ export function RaisinMonitoringScreen() {
             </View>
           </View>
 
-          {/* 1. IDENTIFICAÇÃO DO LOTE */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Identificação da Fruta</Text>
             <View style={styles.sectionBody}>
@@ -159,7 +159,7 @@ export function RaisinMonitoringScreen() {
             </View>
           </View>
 
-          {/* 2. CRONOGRAMA DE SECAGEM */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>2. Cronograma de Processo</Text>
             <View style={styles.sectionBody}>
@@ -217,7 +217,7 @@ export function RaisinMonitoringScreen() {
                 </View>
               </View>
 
-              {/* DatePickers ocultos */}
+              
               {showDatePickerIni && (
                 <DateTimePicker
                   value={new Date()}
@@ -255,7 +255,7 @@ export function RaisinMonitoringScreen() {
             </View>
           </View>
 
-          {/* 3. RESULTADOS E RENDIMENTO */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>3. Rendimento e Finalização</Text>
             <View style={styles.sectionBody}>
@@ -295,7 +295,7 @@ export function RaisinMonitoringScreen() {
             </View>
           </View>
 
-          {/* 4. OBSERVAÇÕES E ASSINATURA */}
+          
           <View style={styles.card}>
             <InputGroup
               label="Observações do Processo"

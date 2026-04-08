@@ -10,11 +10,16 @@ import {
   TouchableOpacity,
   SafeAreaView,
   KeyboardAvoidingView,
+  Modal,
+  FlatList,
+  ActivityIndicator,
+  Image,
 } from "react-native";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { MaterialIcons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import * as ImagePicker from "expo-image-picker";
 
 import {
   envaseControlSchema,
@@ -22,8 +27,12 @@ import {
 } from "../../types/galleryFour/envaseControlSchema";
 import { AuthContext } from "../../contexts/AuthContext";
 import { api } from "../../services/api";
-import * as ImagePicker from "expo-image-picker";
-import { Image } from "react-native";
+
+interface Tambor {
+  id: number;
+  numeroTambor: string;
+  variedadeUva: string;
+}
 
 export function EnvaseControlScreen() {
   const navigation = useNavigation<any>();
@@ -32,12 +41,19 @@ export function EnvaseControlScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [tamboresSelecionados, setTamboresSelecionados] = useState<Tambor[]>(
+    [],
+  );
+  const [modalTamborVisible, setModalTamborVisible] = useState(false);
+  const [tamboresDisponiveis, setTamboresDisponiveis] = useState<Tambor[]>([]);
+  const [loadingTambores, setLoadingTambores] = useState(false);
+  const [searchTambor, setSearchTambor] = useState("");
+
   const { control, reset, handleSubmit } = useForm<EnvaseControlFormData>({
     resolver: zodResolver(envaseControlSchema) as any,
     defaultValues: {
       ano_mes: "",
       data: new Date(),
-
       embalagens: [
         { data_embalagem: "", garrafas_embaladas: 0, total_caixas: 0 },
         { data_embalagem: "", garrafas_embaladas: 0, total_caixas: 0 },
@@ -54,6 +70,38 @@ export function EnvaseControlScreen() {
     control,
     name: "embalagens",
   });
+
+  const abrirModalTambores = async () => {
+    setModalTamborVisible(true);
+    setLoadingTambores(true);
+    try {
+      const response = await api.get("/tambores/disponiveis");
+      setTamboresDisponiveis(response.data);
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível carregar os tambores disponíveis.");
+    } finally {
+      setLoadingTambores(false);
+    }
+  };
+
+  const toggleTambor = (tambor: Tambor) => {
+    const jaSelecionado = tamboresSelecionados.find((t) => t.id === tambor.id);
+    if (jaSelecionado) {
+      setTamboresSelecionados((prev) => prev.filter((t) => t.id !== tambor.id));
+    } else {
+      setTamboresSelecionados((prev) => [...prev, tambor]);
+    }
+  };
+
+  const removerTamborDaCesta = (id: number) => {
+    setTamboresSelecionados((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const tamboresFiltrados = tamboresDisponiveis.filter(
+    (t) =>
+      t.numeroTambor.toLowerCase().includes(searchTambor.toLowerCase()) ||
+      t.variedadeUva.toLowerCase().includes(searchTambor.toLowerCase()),
+  );
 
   const pickImage = async () => {
     let result = await ImagePicker.launchImageLibraryAsync({
@@ -98,6 +146,14 @@ export function EnvaseControlScreen() {
   };
 
   const onSubmit = async (data: EnvaseControlFormData) => {
+    if (tamboresSelecionados.length === 0) {
+      Alert.alert(
+        "Atenção",
+        "Você precisa selecionar pelo menos um Tambor/Bag para este lote.",
+      );
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -105,28 +161,30 @@ export function EnvaseControlScreen() {
         ...data,
         usuarioId: usuarioId,
         fotos: fotos,
+
+        tamboresUtilizados: tamboresSelecionados.map((t) => t.id),
       };
 
       await api.post("/envase-controle", payload);
 
-      Alert.alert("Sucesso", "Análise  salva com sucesso!");
+      Alert.alert("Sucesso", "Análise salva com sucesso!");
 
       reset();
-
       setFotos([]);
-
-      // console.log(JSON.stringify(payload, null, 2));
+      setTamboresSelecionados([]);
     } catch (error: any) {
-      console.error("Erro ao salvar :", error);
-      Alert.alert(
-        "Erro",
-        error.response?.data?.error ||
-          "Não foi possível conectar ao servidor para salvar a análise.",
-      );
+      const erroRetornado = error.response?.data || error.message;
+      const mensagemSegura =
+        typeof erroRetornado === "string"
+          ? erroRetornado
+          : JSON.stringify(erroRetornado);
+
+      Alert.alert("O Backend recusou por causa disso:", mensagemSegura);
     } finally {
       setIsSubmitting(false);
     }
   };
+
   const onValidationError = (erros: any) => {
     console.log("🚨 ERROS DO ZOD:", JSON.stringify(erros, null, 2));
     Alert.alert(
@@ -220,7 +278,7 @@ export function EnvaseControlScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={false}
         >
-          {/* CABEÇALHO */}
+          
           <View style={styles.header}>
             <View
               style={[
@@ -243,7 +301,7 @@ export function EnvaseControlScreen() {
             </View>
           </View>
 
-          {/* 1. DADOS INICIAIS DA LINHA */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>1. Dados da Linha</Text>
             <View style={styles.sectionBody}>
@@ -307,12 +365,90 @@ export function EnvaseControlScreen() {
                   name="rendimento_liq_pct"
                   keyboard="numeric"
                 />
-                <InputGroup label="Tambor/Bag N°" name="tambor_bag_numero" />
+                <View style={{ flex: 1 }} />
+              </View>
+
+              <View
+                style={{
+                  marginTop: 20,
+                  paddingTop: 16,
+                  borderTopWidth: 1,
+                  borderColor: "#E2E8F0",
+                }}
+              >
+                <Text
+                  style={[
+                    styles.label,
+                    { color: "#8B5CF6", marginBottom: 8, fontSize: 11 },
+                  ]}
+                >
+                  TAMBORES / BAGS UTILIZADOS NESTE LOTE:
+                </Text>
+
+                {tamboresSelecionados.length === 0 ? (
+                  <Text
+                    style={{
+                      color: "#94A3B8",
+                      fontStyle: "italic",
+                      marginBottom: 12,
+                      fontSize: 13,
+                    }}
+                  >
+                    Nenhum tambor selecionado ainda.
+                  </Text>
+                ) : (
+                  <View
+                    style={{
+                      flexDirection: "row",
+                      flexWrap: "wrap",
+                      gap: 8,
+                      marginBottom: 12,
+                    }}
+                  >
+                    {tamboresSelecionados.map((tambor) => (
+                      <View key={tambor.id} style={styles.tamborChip}>
+                        <MaterialCommunityIcons
+                          name="barrel"
+                          size={16}
+                          color="#8B5CF6"
+                        />
+                        <Text style={styles.tamborChipText}>
+                          Bag {tambor.numeroTambor}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => removerTamborDaCesta(tambor.id)}
+                        >
+                          <MaterialIcons
+                            name="cancel"
+                            size={18}
+                            color="#EF4444"
+                          />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.addTamborBtn}
+                  onPress={abrirModalTambores}
+                >
+                  <MaterialIcons
+                    name="add-circle-outline"
+                    size={20}
+                    color="#8B5CF6"
+                  />
+                  <Text style={styles.addTamborBtnText}>
+                    {tamboresSelecionados.length > 0
+                      ? "Adicionar mais tambores"
+                      : "Selecionar Tambores"}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
           </View>
 
-          {/* 2. ANÁLISES DO SUCO (PÓS-ENVASE) */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>2. Análises Pós-Envase</Text>
             <View style={styles.sectionBody}>
@@ -345,7 +481,7 @@ export function EnvaseControlScreen() {
             </View>
           </View>
 
-          {/* 3. AVALIAÇÃO DE PERDAS */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>3. Avaliação de Perdas</Text>
             <View style={styles.sectionBody}>
@@ -370,7 +506,7 @@ export function EnvaseControlScreen() {
             </View>
           </View>
 
-          {/* 4. INSUMOS */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>4. Controle de Insumos</Text>
             <View style={styles.sectionBody}>
@@ -395,7 +531,7 @@ export function EnvaseControlScreen() {
             </View>
           </View>
 
-          {/* 5. EMBALAGEM (LISTA DINÂMICA) */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>5. Registro de Embalagem</Text>
             <View style={styles.sectionBody}>
@@ -417,7 +553,6 @@ export function EnvaseControlScreen() {
                       keyboard="numeric"
                     />
 
-                    {/* Botão Remover Linha */}
                     {embalagemFields.length > 1 && (
                       <TouchableOpacity
                         onPress={() => removeEmbalagem(index)}
@@ -454,7 +589,7 @@ export function EnvaseControlScreen() {
             </View>
           </View>
 
-          {/* 6. FOTOS / ANEXOS */}
+          
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>6. Fotos da Ocorrência</Text>
             <View style={styles.sectionBody}>
@@ -481,7 +616,7 @@ export function EnvaseControlScreen() {
                 </ScrollView>
               )}
 
-              {/* Botoes Lado a Lado: Galeria e Câmera */}
+              
               <View style={{ flexDirection: "row", gap: 10 }}>
                 <TouchableOpacity
                   style={[styles.addButton, { flex: 1 }]}
@@ -510,7 +645,7 @@ export function EnvaseControlScreen() {
             </View>
           </View>
 
-          {/* 7. ASSINATURAS E OBS */}
+          
           <View style={styles.card}>
             <InputGroup
               label="Observações / Ocorrências"
@@ -538,16 +673,152 @@ export function EnvaseControlScreen() {
             style={styles.submitButton}
             onPress={handleSubmit(onSubmit, onValidationError)}
             activeOpacity={0.8}
+            disabled={isSubmitting}
           >
-            <Text style={styles.submitText}>Salvar Controle de Envase</Text>
-            <MaterialCommunityIcons
-              name="content-save-all"
-              size={24}
-              color="#fff"
-            />
+            {isSubmitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <Text style={styles.submitText}>Salvar Controle de Envase</Text>
+                <MaterialCommunityIcons
+                  name="content-save-all"
+                  size={24}
+                  color="#fff"
+                />
+              </>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={modalTamborVisible}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View
+              style={{
+                flexDirection: "row",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 16,
+              }}
+            >
+              <Text style={styles.modalTitle}>Selecionar Tambores</Text>
+              <TouchableOpacity onPress={() => setModalTamborVisible(false)}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color="#64748B"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.searchContainer}>
+              <MaterialCommunityIcons
+                name="magnify"
+                size={24}
+                color="#94A3B8"
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Pesquisar N° Bag..."
+                value={searchTambor}
+                onChangeText={setSearchTambor}
+              />
+            </View>
+
+            {loadingTambores ? (
+              <ActivityIndicator
+                size="large"
+                color="#8B5CF6"
+                style={{ marginTop: 40 }}
+              />
+            ) : (
+              <FlatList
+                data={tamboresFiltrados}
+                keyExtractor={(item) => String(item.id)}
+                contentContainerStyle={{ paddingBottom: 20 }}
+                ListEmptyComponent={
+                  <Text
+                    style={{
+                      textAlign: "center",
+                      marginTop: 20,
+                      color: "#64748B",
+                    }}
+                  >
+                    Nenhum tambor disponível encontrado.
+                  </Text>
+                }
+                renderItem={({ item }) => {
+                  const isSelected = tamboresSelecionados.some(
+                    (t) => t.id === item.id,
+                  );
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.tamborItem,
+                        isSelected && styles.tamborItemAtivo,
+                      ]}
+                      onPress={() => toggleTambor(item)}
+                    >
+                      <View
+                        style={{ flexDirection: "row", alignItems: "center" }}
+                      >
+                        <MaterialCommunityIcons
+                          name="barrel"
+                          size={24}
+                          color={isSelected ? "#8B5CF6" : "#94A3B8"}
+                        />
+                        <View style={{ marginLeft: 12 }}>
+                          <Text
+                            style={[
+                              styles.tamborItemTitle,
+                              isSelected && { color: "#8B5CF6" },
+                            ]}
+                          >
+                            Bag/Tambor {item.numeroTambor}
+                          </Text>
+                          <Text style={styles.tamborItemSub}>
+                            🍇 {item.variedadeUva}
+                          </Text>
+                        </View>
+                      </View>
+                      {isSelected ? (
+                        <MaterialCommunityIcons
+                          name="check-circle"
+                          size={24}
+                          color="#8B5CF6"
+                        />
+                      ) : (
+                        <MaterialCommunityIcons
+                          name="checkbox-blank-circle-outline"
+                          size={24}
+                          color="#E2E8F0"
+                        />
+                      )}
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                { marginTop: 10, borderRadius: 8, elevation: 0 },
+              ]}
+              onPress={() => setModalTamborVisible(false)}
+            >
+              <Text style={styles.submitText}>
+                Confirmar Seleção ({tamboresSelecionados.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -753,5 +1024,74 @@ const styles = StyleSheet.create({
     padding: 2,
     elevation: 2,
     zIndex: 10,
+  },
+
+  tamborChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EDE9FE",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: "#DDD6FE",
+  },
+  tamborChipText: { color: "#6D28D9", fontWeight: "bold", fontSize: 14 },
+
+  addTamborBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#8B5CF6",
+    borderStyle: "dashed",
+    backgroundColor: "#F5F3FF",
+  },
+  addTamborBtnText: { color: "#8B5CF6", fontWeight: "bold", marginLeft: 8 },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    maxHeight: "85%",
+  },
+  modalTitle: { fontSize: 20, fontWeight: "bold", color: "#1E293B" },
+
+  tamborItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  tamborItemAtivo: { backgroundColor: "#F5F3FF" },
+  tamborItemTitle: { fontSize: 16, fontWeight: "bold", color: "#334155" },
+  tamborItemSub: { fontSize: 13, color: "#64748B", marginTop: 2 },
+
+  searchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    height: 48,
+    marginLeft: 8,
+    color: "#1E293B",
   },
 });

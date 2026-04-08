@@ -12,19 +12,20 @@ const registroEnvaseSchema = z.object({
   tamp_vazao: z.coerce.number().optional(),
   tamp_perda: z.coerce.number().nonnegative().optional(),
   observacao: z.string().optional(),
-  
-  // ---> JORNADA E PRODUTO (AGORA NO FINAL DO LOTE) <---
-  modelo_garrafa: z.string().optional(),
-  jornada_inicio: z.string().optional(),
-  jornada_almoco_ini: z.string().optional(),
-  jornada_almoco_fim: z.string().optional(),
-  jornada_fim: z.string().optional(),
 });
 
 export const packagingMonitoringSchema = z.object({
   data: z.date(),
   lote: z.string().min(1, "Obrigatório"),
   registros: z.array(registroEnvaseSchema).min(1),
+  
+  
+  modelo_garrafa: z.string().optional(),
+  jornada_inicio: z.string().optional(),
+  jornada_almoco_ini: z.string().optional(),
+  jornada_almoco_fim: z.string().optional(),
+  jornada_fim: z.string().optional(),
+  
   assinatura_operador: z.string().min(1, "Assinatura obrigatória"),
 });
 
